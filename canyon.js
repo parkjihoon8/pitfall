@@ -339,9 +339,10 @@
       ctx.fillStyle='#285953';ctx.fillRect(X(bx-w/2),Z(bz-d/2),w*s,d*s);ctx.strokeStyle='#f4d096';ctx.lineWidth=3;ctx.strokeRect(X(bx-w/2),Z(bz-d/2),w*s,d*s);
       if(Math.abs(bx-p.x)<29&&Math.abs(bz-p.z)<29){ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillStyle='#203d37';ctx.fillText('기지',X(bx),Z(bz-d/2)-9);}
       excavation.drawMap(ctx,X,Z,s);
-      for(const obj of pickups.values()){ctx.fillStyle=obj.userData.interaction.data.id==='stick'?'#6a4f32':'#518a7d';ctx.beginPath();ctx.arc(X(obj.position.x),Z(obj.position.z),3,0,Math.PI*2);ctx.fill();}
-      if(!equipment.state.worn){const pack=equipment.state,x=Math.max(14,Math.min(306,X(pack.x))),z=Math.max(24,Math.min(296,Z(pack.z)));ctx.fillStyle='#ffcb64';ctx.strokeStyle='#3b3024';ctx.lineWidth=2;ctx.fillRect(x-7,z-8,14,17);ctx.strokeRect(x-7,z-8,14,17);ctx.strokeRect(x-3,z-12,6,4);ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('배낭',x,z+23);mapCanvas.dataset.backpackVisible='true';}else mapCanvas.dataset.backpackVisible='false';
+      for(const obj of pickups.values()){ctx.fillStyle=obj.userData.interaction.data.id==='stick'?'#6a4f32':'#518a7d';ctx.beginPath();ctx.arc(X(obj.position.x),Z(obj.position.z),mapExpanded?1:3,0,Math.PI*2);ctx.fill();}
+      if(!equipment.state.worn){const pack=equipment.state,x=Math.max(14,Math.min(306,X(pack.x))),z=Math.max(24,Math.min(296,Z(pack.z)));ctx.save();ctx.translate(x,z);if(mapExpanded)ctx.scale(.6,.6);ctx.fillStyle='#ffcb64';ctx.strokeStyle='#3b3024';ctx.lineWidth=2;ctx.fillRect(-7,-8,14,17);ctx.strokeRect(-7,-8,14,17);ctx.strokeRect(-3,-12,6,4);ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('배낭',0,23);ctx.restore();mapCanvas.dataset.backpackVisible='true';}else mapCanvas.dataset.backpackVisible='false';
       ctx.save();ctx.translate(X(p.x),Z(p.z));ctx.rotate(-p.yaw);
+      if(mapExpanded)ctx.scale(.6,.6);
       ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,42,-Math.PI/2-.6,-Math.PI/2+.6);ctx.closePath();ctx.fillStyle='#205f5e33';ctx.fill();
       ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(9,10);ctx.lineTo(0,6);ctx.lineTo(-9,10);ctx.closePath();ctx.fillStyle='#f5faf0';ctx.strokeStyle='#254c48';ctx.lineWidth=3;ctx.fill();ctx.stroke();ctx.restore();
     }

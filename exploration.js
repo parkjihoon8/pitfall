@@ -20,8 +20,11 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
     const y=slot.id==='ladder'?Math.min(-2.5,v.y-1):v.y;if(v.y>3.4){toast('보호 구역에는 설치할 수 없습니다.');return true;}
     const d={id:slot.id,x:v.x+hit.normal.x*.2,y,z:v.z+hit.normal.z*.2,yaw:Math.atan2(hit.normal.x,hit.normal.z)};state.placed.push(d);placed(d);if(--slot.count===0)bag.slots[bag.selected]=null;persist();renderBag();toast('설치 완료 · 사다리 가까이에서 W/S로 오르내리기');return true;
   }
-  function ladderNear(){return ladders.find(d=>Math.hypot(d.x-p.x,d.z-p.z)<1.45&&p.airY>=d.y-.4&&p.airY<=d.y+2.7);}
-  function climbing(keys){const l=ladderNear();return !!l&&((keys.has('KeyW')&&p.airY<Math.min(0,l.y+2.6)-.01)||(keys.has('KeyS')&&p.airY>l.y+.01));}
+  let attached=null;
+  const near=d=>Math.hypot(d.x-p.x,d.z-p.z)<1.45&&p.airY>=d.y-.4&&p.airY<=d.y+2.7;
+  function ladderNear(){return ladders.filter(near).sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))[0];}
+  function release(keys){return keys.has('KeyA')||keys.has('KeyD')||keys.has('Space');}
+  function climbing(keys){if(release(keys))return false;const l=ladderNear();return !!l&&((keys.has('KeyW')&&p.airY<Math.min(0,l.y+2.6)-.01)||(keys.has('KeyS')&&p.airY>l.y+.01));}
   function update(dt,keys){lamp.intensity=state.headlampEquipped?22:0;gear.textContent=state.headlampEquipped?'☀ 헤드램프 착용':'';lamp.position.copy(camera.position);lamp.target.position.copy(camera.position).add(camera.getWorldDirection(new T.Vector3()).multiplyScalar(10));
     const held=bag.slots[bag.selected]?.id;signal.hidden=held!=='scanner';if(held==='scanner'){
       const distance=t=>Math.hypot(t.x-p.x,t.y-(p.airY+1),t.z-p.z),bearing=t=>(Math.atan2(t.x-p.x,-(t.z-p.z))*180/Math.PI+360)%360,c=excavation.dig.chamber;
@@ -30,7 +33,18 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
       const line=t=>PitfallInventory.ITEMS[t.gem].name+' · '+distance(t).toFixed(1)+'m · 방위 '+Math.round(bearing(t))+'°';
       signal.style.fontSize=mine?'23px':'16px';signal.style.whiteSpace='pre-line';signal.textContent=(mine?'⚠ 폐광 '+arrow+' · '+mineDistance.toFixed(1)+'m · 방위 '+Math.round(bearing(c))+'°\n':'')+(ore?'광맥 신호 · '+line(ore):'10m 이내 일반 광맥 신호 없음')+'\n'+(diamond?'◆ 다이아 전용 신호 · '+line(diamond):'◆ 10m 이내 다이아 신호 없음');
     }
-    const l=ladderNear();if(l&&(keys.has('KeyW')||keys.has('KeyS'))){const next=Math.min(0,l.y+2.6,Math.max(l.y,p.airY+(keys.has('KeyW')?1:-1)*dt*2.5));if(world.free(p.x,p.z,.38,next)){p.airY=next;p.vy=0;p.landingSpeed=0;return true;}}return false;
+    if(release(keys)){attached=null;return false;}
+    if(attached&&!near(attached))attached=null;
+    const direction=Number(keys.has('KeyW'))-Number(keys.has('KeyS'));
+    if(direction){const candidates=ladders.filter(near).filter(d=>direction>0?Math.min(0,d.y+2.6)>p.airY+.01:d.y<p.airY-.01);attached=candidates.sort((a,b)=>direction>0?b.y-a.y:a.y-b.y)[0]||attached||ladderNear();}
+    if(!attached)return false;
+    const next=Math.min(0,attached.y+2.6,Math.max(attached.y,p.airY+direction*dt*2.2)),radius=world.RADIUS||.3;
+    if(world.free(p.x,p.z,radius,next))p.airY=next;
+    else if(direction){
+      // Find a nearby clear lane without passing through rock on the way there.
+      let moved=false;for(const reach of [.06,.12,.18,.24]){for(let i=0;i<8;i++){const dx=Math.cos(i*Math.PI/4)*reach,dz=Math.sin(i*Math.PI/4)*reach;let clear=true;for(let t=.25;t<=1;t+=.25)if(!world.free(p.x+dx*t,p.z+dz*t,radius,p.airY)||!world.free(p.x+dx*t,p.z+dz*t,radius,next)){clear=false;break;}if(clear){p.x+=dx;p.z+=dz;p.airY=next;moved=true;break;}}if(moved)break;}
+    }
+    p.vy=0;p.landingSpeed=0;p.jumping=false;p.grounded=false;return true;
   }
   return {use,harvest,update,ladderNear,climbing};
 };
