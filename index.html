@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Pitfall — 붉은 협곡</title>
-  <link rel="stylesheet" href="canyon.css">
-  <link rel="stylesheet" href="canyon-hud.css">
-  <link rel="stylesheet" href="crafting.css">
+  <link rel="stylesheet" href="canyon.css?v=230fe3add9e8">
+  <link rel="stylesheet" href="canyon-hud.css?v=c6b74767371f">
+  <link rel="stylesheet" href="crafting.css?v=de725ce17663">
 </head>
 <body>
   <header class="hud">
@@ -36,6 +36,7 @@
   </section>
   <aside class="minimap" aria-label="주변 지형 미니맵">
     <div class="map-title">주변 지형 <span>N ↑</span></div>
+    <button id="map-toggle" type="button" aria-expanded="false">전체 지도 · F2 / M</button>
     <canvas id="minimap" width="320" height="320" role="img" aria-label="현재 위치, 시선 방향, 협곡 벽과 기지"></canvas>
     <div class="map-legend">▲ 나 <span>■ 기지</span><span>반경 35m</span></div>
   </aside>
@@ -58,18 +59,18 @@
     <a href="https://kenney.nl/assets/survival-kit" target="_blank" rel="noopener">Kenney · Survival Kit</a><br>작업대, 상자, 통, 침낭, 도구, 목재, 돌 — CC0<br>
     Three.js · MIT<br>협곡, 기지, 갱도, 철로와 광차는 직접 구성했습니다.
   </aside>
-  <script src="three.min.js"></script>
-  <script src="assets.js"></script>
-  <script src="world.js"></script>
-  <script src="inventory.js"></script>
-  <script src="tool-models.js"></script>
-  <script src="resources.js"></script>
-  <script src="terrain-field.js"></script>
-  <script src="terrain-mesh.js"></script>
-  <script src="terrain-runtime.js"></script>
-  <script src="equipment.js"></script>
-  <script src="vitals.js"></script>
-  <script src="exploration.js"></script>
-  <script src="canyon.js"></script>
+  <script src="three.min.js?v=170c6789f432"></script>
+  <script src="assets.js?v=808a516d8298"></script>
+  <script src="world.js?v=fa6163299d88"></script>
+  <script src="inventory.js?v=805672bb3fff"></script>
+  <script src="tool-models.js?v=39604a274a05"></script>
+  <script src="resources.js?v=a343ee7e3302"></script>
+  <script src="terrain-field.js?v=8157b94ab0d8"></script>
+  <script src="terrain-mesh.js?v=de2dc980a965"></script>
+  <script src="terrain-runtime.js?v=608168c6c2dc"></script>
+  <script src="equipment.js?v=7d81478fb4d8"></script>
+  <script src="vitals.js?v=f303cac7257c"></script>
+  <script src="exploration.js?v=364a8ca7a1cc"></script>
+  <script src="canyon.js?v=771adfa58f14"></script>
 </body>
 </html>

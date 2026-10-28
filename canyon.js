@@ -370,7 +370,7 @@
     addEventListener('mouseup',()=>{if(dragging&&dragDistance<4&&document.pointerLockElement!==canvas)interact();dragging=false;});
     addEventListener('mousemove',e=>{if(playing&&(document.pointerLockElement===canvas||dragging)){dragDistance+=Math.abs(e.movementX)+Math.abs(e.movementY);look(e.movementX,e.movementY);}});
     addEventListener('keydown',e=>{
-      if(e.code==='F2'){e.preventDefault();if(!e.repeat){mapExpanded=!mapExpanded;mapCanvas.closest('.minimap').classList.toggle('expanded',mapExpanded);mapCanvas.setAttribute('aria-label',mapExpanded?'전체 협곡 지도 · F2로 닫기':'주변 지형 · F2로 확대');drawMap();}return;}
+      if(e.code==='F2'||e.key==='F2'||e.code==='KeyM'){e.preventDefault();if(!e.repeat)toggleMap();return;}
       if(e.code==='F3'){e.preventDefault();showingCoords=true;coords.hidden=false;return;}
       if(e.code==='Escape'){if(crafting)closeCraft(false);else pause();document.exitPointerLock?.();return;}
       if(!playing||vitals.resting)return;
@@ -382,6 +382,8 @@
       if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)){e.preventDefault();keys.add(e.code);}
     });
     addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='F3'){showingCoords=false;coords.hidden=true;}});addEventListener('blur',()=>{showingCoords=false;coords.hidden=true;pause();});
+    function toggleMap(){mapExpanded=!mapExpanded;mapCanvas.closest('.minimap').classList.toggle('expanded',mapExpanded);document.getElementById('map-toggle').textContent=mapExpanded?'지도 닫기 · F2 / M':'전체 지도 · F2 / M';document.getElementById('map-toggle').setAttribute('aria-expanded',String(mapExpanded));mapCanvas.setAttribute('aria-label',mapExpanded?'전체 협곡 지도':'주변 지형');drawMap();}
+    document.getElementById('map-toggle').onclick=toggleMap;
     document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
     document.getElementById('credits-link').addEventListener('click',e=>{e.preventDefault();document.getElementById('credits').classList.toggle('open');});
     document.getElementById('close-credits').onclick=()=>document.getElementById('credits').classList.remove('open');
