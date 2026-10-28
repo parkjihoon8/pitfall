@@ -6,7 +6,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   world.density=field.density;
   const material=mat(0xbd8559,{side:T.DoubleSide,flatShading:false}),wood=mat(0x66503a),iron=mat(0x46524e),colors={quartz:0xa4d8ef,emerald:0x4fcb92,ruby:0xe5687c,diamond:0xb6efff};
   const chamber=field.chamber,veins=[],particles=[],chipGeo=new T.TetrahedronGeometry(.065);let shake=0,pending=null,stress=0,lastHit=0;
-  const lantern=new T.PointLight(0xffd5a3,15,10,2);scene.add(lantern);
+  const lantern=new T.PointLight(0xffd5a3,0,10,1);lantern.name='cave-fill-light';scene.add(lantern);
   const impactLight=new T.PointLight(0xccefff,0,5,2);scene.add(impactLight);
   let deposits=[];try{deposits=(JSON.parse(raw)?.deposits||[]).filter(d=>d.gem!=='diamond'||d.y< -5);}catch{}field.state.deposits=deposits;
   if(!deposits.some(d=>d.id==='buried-0')){let seed=field.seed||173;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};for(let i=0;i<420;i++){const z=world.Z_MIN+5+rand()*(world.Z_MAX-world.Z_MIN-10),b=world.bounds(z),floor=i%2===0,y=floor?-2-rand()*19:1+rand()*2,x=floor?b.left+rand()*(b.right-b.left):(i%4===1?b.left-1-rand()*14:b.right+1+rand()*14),gem=floor&&y< -9&&rand()<.08?'diamond':['quartz','emerald','ruby'][Math.floor(rand()*3)];deposits.push({id:'buried-'+i,x,y,z,gem});}}
@@ -80,7 +80,8 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
     if(cleanClock>2){cleanClock=0;const k=Math.round(p.x*2)+','+Math.round(p.z*2);if(lastCleanCount!==field.count&&checked.get(k)!==field.count){lastCleanCount=field.count;checked.set(k,field.count);
       const near=field.cuts.filter(c=>Math.hypot(c.x-p.x,c.z-p.z)<2.8);if(near.length){const at=new T.Vector3(p.x-Math.sin(p.yaw)*1.4,1.25,p.z-Math.cos(p.yaw)*1.4),r=field.cleanup(at);for(const [x,z] of r.dirty)rebuild(x,z);if(r.removed){burst(at);try{localStorage.setItem('pitfall-terrain-v2',field.serialize());}catch{}}}
     }}
-    const b=world.bounds(p.z),inside=p.x<b.left||p.x>b.right||p.z<world.Z_MIN||p.z>world.Z_MAX;lantern.position.set(p.x,2.5+p.airY,p.z);lantern.intensity=inside?16:0;shake=Math.max(0,shake-dt*.2);
+    const b=world.bounds(p.z),depth=Math.max(b.left-p.x,p.x-b.right,world.Z_MIN-p.z,p.z-world.Z_MAX,-p.airY,0),fade=Math.min(1,depth/2),targetLight=3.5*fade*fade*(3-2*fade);
+    lantern.position.set(p.x,2.5+p.airY,p.z);lantern.intensity+=(targetLight-lantern.intensity)*(1-Math.exp(-dt*3));shake=Math.max(0,shake-dt*.2);
     if(performance.now()-lastHit>10000)stress=Math.max(0,stress-dt*.3);
     for(let i=particles.length-1;i>=0;i--){const a=particles[i];a.life-=dt;a.v.y-=5*dt;a.m.position.addScaledVector(a.v,dt);a.m.scale.setScalar(Math.max(.05,a.life));if(a.life<=0){a.m.removeFromParent();a.m.material.dispose();particles.splice(i,1);}}
     if(pending){pending.time-=dt;if(pending.time<=0){const at=pending.at;pending=null;const removed=field.collapse(at),dirty=new Set();for(const c of removed)for(let cx=Math.floor((c.x-c.r-.1)/4);cx<=Math.floor((c.x+c.r+.1)/4);cx++)for(let cz=Math.floor((c.z-c.r-.1)/4);cz<=Math.floor((c.z+c.r+.1)/4);cz++)dirty.add(cx+','+cz);for(const k of dirty)rebuild(...k.split(',').map(Number));burst(at,0xb39a7a,40);shake=.12;stress=0;
