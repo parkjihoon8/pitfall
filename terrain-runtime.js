@@ -8,7 +8,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   const chamber=field.chamber,veins=[],particles=[],chipGeo=new T.TetrahedronGeometry(.065);let shake=0,pending=null,stress=0,lastHit=0;
   const lantern=new T.PointLight(0xffd5a3,0,10,1);lantern.name='cave-fill-light';scene.add(lantern);
   const impactLight=new T.PointLight(0xccefff,0,5,2);scene.add(impactLight);
-  let deposits=[];try{deposits=(JSON.parse(raw)?.deposits||[]).filter(d=>d.gem!=='diamond'||d.y< -5);}catch{}field.state.deposits=deposits;
+  let deposits=[];try{const savedDeposits=JSON.parse(raw)?.deposits;if(Array.isArray(savedDeposits))deposits=savedDeposits;}catch{}field.state.deposits=deposits;
   if(!deposits.some(d=>d.id==='buried-0')){let seed=field.seed||173;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};for(let i=0;i<420;i++){const z=world.Z_MIN+5+rand()*(world.Z_MAX-world.Z_MIN-10),b=world.bounds(z),floor=i%2===0,y=floor?-2-rand()*19:1+rand()*2,x=floor?b.left+rand()*(b.right-b.left):(i%4===1?b.left-1-rand()*14:b.right+1+rand()*14),gem=floor&&y< -9&&rand()<.08?'diamond':['quartz','emerald','ruby'][Math.floor(rand()*3)];deposits.push({id:'buried-'+i,x,y,z,gem});}}
   // Stable supplemental deposits also upgrade existing saves without refilling mined veins.
   for(let i=0;i<20;i++)for(let lane=0;lane<3;lane++){const id='diamond-supply-v1-'+i+'-'+lane;if(deposits.some(d=>d.id===id))continue;const z=world.Z_MAX-10-i*14+(lane-1)*2,b=world.bounds(z),x=b.left+(b.right-b.left)*(.22+lane*.28),y=-6.5-((i+lane)%4)*2;deposits.push({id,gem:'diamond',x,y,z});}
@@ -67,6 +67,13 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
     for(const k of dirty)rebuild(...k.split(',').map(Number));
     if(cleanup.removed)burst(hit.point,0xc8a078,16);
     const n=field.state.totalCuts,loot=[];if(n%6===0)loot.push('stone');if(n%43===0)loot.push('stick');
+    // Additional visible veins in freshly opened deep rock; existing deposits are untouched.
+    const bounds=world.bounds(hit.point.z),depth=Math.max(-hit.point.y,bounds.left-hit.point.x,hit.point.x-bounds.right,world.Z_MIN-hit.point.z,hit.point.z-world.Z_MAX,0);
+    if(depth>=3){let seed=(Math.imul(n,2654435761)^Math.round(chamber.x*1000)^Math.round(chamber.z*1000))>>>0;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};const chance=Math.min(.4,.05+(depth-3)*.02);
+      if(random()<chance){const cut=result.cut,pos=new T.Vector3(cut.x,cut.y,cut.z).addScaledVector(normal,-(cut.r+.18)),id='deep-bonus-v1-'+n;
+        if(field.density(pos.x,pos.y,pos.z)>.02&&!deposits.some(d=>d.id===id)){const roll=random(),gem=pos.y< -6&&roll<.2?'diamond':roll<.45?'quartz':roll<.75?'emerald':'ruby',d={id,gem,x:pos.x,y:pos.y,z:pos.z};deposits.push(d);deposit(d);}
+      }
+    }
     let warning;const at=hit.point,b=world.bounds(at.z),buried=at.x<b.left-1.5||at.x>b.right+1.5||at.z<world.Z_MIN-1.5||at.z>world.Z_MAX+1.5;
     if(!tool?.drill&&normal.y<.5&&buried&&Math.hypot(at.x-mx,at.z-mz)>6&&[[1.4,0],[-1.4,0],[0,1.4],[0,-1.4]].every(([dx,dz])=>field.density(at.x+dx,p.airY+1.2,at.z+dz)<0)){
       stress++;lastHit=performance.now();if(stress>=5)warning='지지대 없이 너무 넓게 파고 있습니다. 천장이 불안정합니다.';
