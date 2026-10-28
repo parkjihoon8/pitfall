@@ -205,7 +205,7 @@
     mergeStones();
     const stamina=world.staminaState();let sprinting=false;
     const staminaPanel=document.querySelector('.stamina'),staminaFill=document.getElementById('stamina-fill'),staminaValue=document.getElementById('stamina-value'),staminaBar=document.getElementById('stamina-bar'),staminaStatus=document.getElementById('stamina-status');
-    const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');let lastMap=0;
+    const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');let lastMap=0,mapExpanded=false;mapCanvas.width=mapCanvas.height=640;
     const hotbar=document.getElementById('hotbar'),craftOverlay=document.getElementById('craft-overlay'),craftButton=document.getElementById('craft-button');
     const objective=document.getElementById('objective'),toastNode=document.getElementById('toast');let toastUntil=0,wheelAt=-1000,lastTarget=0,target=null,dragDistance=0;
     const icon=id=>inv.TOOLS[id]?.drill?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 10H30V29H8ZM12 29H21V44H12" fill="'+inv.TOOLS[id].color+'"/><path d="M30 13L46 20L30 26Z" fill="#d1e6eb"/></svg>':inv.TOOLS[id]?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 41L30 12" stroke="#cda06b" stroke-width="6" stroke-linecap="round"/><path d="M9 12Q29 2 41 23L29 16L9 18Z" fill="'+inv.TOOLS[id].color+'"/></svg>':'<svg viewBox="0 0 48 48" aria-hidden="true">'+({
@@ -330,7 +330,7 @@
     }
     canvas.addEventListener('wheel',e=>{if(!playing||crafting||!e.deltaY)return;e.preventDefault();const now=performance.now();if(now-wheelAt<130)return;wheelAt=now;inv.select(bag,Math.sign(e.deltaY));renderBag();save();},{passive:false});
     function drawMap(){
-      const ctx=mapCtx,s=320/70,X=x=>160+(x-p.x)*s,Z=z=>160+(z-p.z)*s;
+      const ctx=mapCtx,s=mapExpanded?320/(world.Z_MAX-world.Z_MIN+20):320/70,centerX=mapExpanded?0:p.x,centerZ=mapExpanded?(world.Z_MIN+world.Z_MAX)/2:p.z,X=x=>160+(x-centerX)*s,Z=z=>160+(z-centerZ)*s;ctx.setTransform(2,0,0,2,0,0);
       ctx.fillStyle='#b77c52';ctx.fillRect(0,0,320,320);
       ctx.beginPath();world.slices.forEach((v,i)=>i?ctx.lineTo(X(v.left),Z(v.z)):ctx.moveTo(X(v.left),Z(v.z)));
       for(let i=world.slices.length-1;i>=0;i--)ctx.lineTo(X(world.slices[i].right),Z(world.slices[i].z));
@@ -340,7 +340,8 @@
       if(Math.abs(bx-p.x)<29&&Math.abs(bz-p.z)<29){ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillStyle='#203d37';ctx.fillText('기지',X(bx),Z(bz-d/2)-9);}
       excavation.drawMap(ctx,X,Z,s);
       for(const obj of pickups.values()){ctx.fillStyle=obj.userData.interaction.data.id==='stick'?'#6a4f32':'#518a7d';ctx.beginPath();ctx.arc(X(obj.position.x),Z(obj.position.z),3,0,Math.PI*2);ctx.fill();}
-      ctx.save();ctx.translate(160,160);ctx.rotate(-p.yaw);
+      if(!equipment.state.worn){const pack=equipment.state,x=Math.max(14,Math.min(306,X(pack.x))),z=Math.max(24,Math.min(296,Z(pack.z)));ctx.fillStyle='#ffcb64';ctx.strokeStyle='#3b3024';ctx.lineWidth=2;ctx.fillRect(x-7,z-8,14,17);ctx.strokeRect(x-7,z-8,14,17);ctx.strokeRect(x-3,z-12,6,4);ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('배낭',x,z+23);mapCanvas.dataset.backpackVisible='true';}else mapCanvas.dataset.backpackVisible='false';
+      ctx.save();ctx.translate(X(p.x),Z(p.z));ctx.rotate(-p.yaw);
       ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,42,-Math.PI/2-.6,-Math.PI/2+.6);ctx.closePath();ctx.fillStyle='#205f5e33';ctx.fill();
       ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(9,10);ctx.lineTo(0,6);ctx.lineTo(-9,10);ctx.closePath();ctx.fillStyle='#f5faf0';ctx.strokeStyle='#254c48';ctx.lineWidth=3;ctx.fill();ctx.stroke();ctx.restore();
     }
@@ -369,6 +370,7 @@
     addEventListener('mouseup',()=>{if(dragging&&dragDistance<4&&document.pointerLockElement!==canvas)interact();dragging=false;});
     addEventListener('mousemove',e=>{if(playing&&(document.pointerLockElement===canvas||dragging)){dragDistance+=Math.abs(e.movementX)+Math.abs(e.movementY);look(e.movementX,e.movementY);}});
     addEventListener('keydown',e=>{
+      if(e.code==='F2'){e.preventDefault();if(!e.repeat){mapExpanded=!mapExpanded;mapCanvas.closest('.minimap').classList.toggle('expanded',mapExpanded);mapCanvas.setAttribute('aria-label',mapExpanded?'전체 협곡 지도 · F2로 닫기':'주변 지형 · F2로 확대');drawMap();}return;}
       if(e.code==='F3'){e.preventDefault();showingCoords=true;coords.hidden=false;return;}
       if(e.code==='Escape'){if(crafting)closeCraft(false);else pause();document.exitPointerLock?.();return;}
       if(!playing||vitals.resting)return;

@@ -10,5 +10,9 @@
 .map-title{display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;letter-spacing:.5px}.map-title span{color:#eac28a}
 .scanner-signal{position:fixed;top:145px;left:50%;transform:translateX(-50%);background:#183c38e8;padding:12px 18px;border:1px solid #99d9ad;border-radius:5px;color:#b9edcc;font-size:13px;pointer-events:none}.scanner-signal[hidden]{display:none}
 .minimap canvas{width:162px;height:162px;border:1px solid #b9cdbb44;border-radius:2px}
+.minimap::after{content:'F2 · 전체 지도';display:block;font-size:11px;color:#d2d9bc;margin-top:5px;text-align:center}
+.minimap.expanded{z-index:25;left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(76vh,80vw);box-shadow:0 0 0 100vmax #071b1680;padding:14px}
+.minimap.expanded canvas{width:100%;height:auto;display:block}
+.minimap.expanded::after{content:'전체 지도 · F2로 닫기'}
 .map-legend{display:flex;justify-content:space-between;font-size:9px;color:#b9ddc7;margin-top:8px}.map-legend span:first-child{color:#f6c87f}.map-legend span:last-child{color:#a7bbb1}
 @media(max-width:650px){.stamina{left:16px;bottom:66px;width:160px;padding:10px}.minimap{right:16px;width:134px;padding:8px}.minimap canvas{width:116px;height:116px}.map-legend span:last-child{display:none}.stamina-label{font-size:10px}.menu:not([hidden])~.controls{opacity:.65}}
