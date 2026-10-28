@@ -409,7 +409,8 @@
       staminaPanel.classList.toggle('low',amount<30);staminaPanel.classList.toggle('exhausted',stamina.exhausted);
       staminaStatus.textContent=stamina.exhausted?'지침 · SHIFT를 놓고 회복':p.airY>0?'점프 · 이동 속도 증가':playing&&sprinting?'달리는 중':stamina.value<100?'숨 고르는 중':'SHIFT · 달리기';
       if(now-lastMap>200){drawMap();lastMap=now;}
-      camera.position.set(p.x,1.72+p.airY+Math.sin(bob)*.018+Math.sin(now*.09)*excavation.shake,p.z);camera.rotation.set(p.pitch,p.yaw,0,'YXZ');
+      p.stepOffset=(p.stepOffset||0)*Math.exp(-12*dt);
+      camera.position.set(p.x,1.72+p.airY+p.stepOffset+Math.sin(bob)*.018+Math.sin(now*.09)*excavation.shake,p.z);camera.rotation.set(p.pitch,p.yaw,0,'YXZ');
       const inBase=p.x>bx-w/2&&p.x<bx+w/2&&p.z>bz-d/2&&p.z<front;
       zone.textContent=inBase?'간이 기지 · 내부':excavation.zone(p)||(p.z<-25?'붉은 협곡 · 탐사 구역':'붉은 협곡 · 기지 주변');
       heading.textContent=String(Math.round(((-p.yaw*180/Math.PI)%360+360)%360)).padStart(3,'0')+'°';

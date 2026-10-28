@@ -38,8 +38,16 @@
     const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.12));
     for(let i=0;i<steps;i++){
       for(const [sx,sz] of [[dx/steps,0],[0,dz/steps]]){if(!sx&&!sz)continue;const x=p.x+sx,z=p.z+sz,y=p.airY||0;
-        if(free(x,z,RADIUS,y)){p.x=x;p.z=z;}
-        else if(p.grounded&&api.density&&free(p.x,p.z,RADIUS,y+.3)&&free(x,z,RADIUS,y+.3)){p.x=x;p.z=z;p.airY=y+.3;p.vy=0;}
+        const footClear=!p.grounded||!api.density||[[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]].every(([ax,az])=>api.density(x+ax,y+.03,z+az)<=0);
+        if(free(x,z,RADIUS,y)&&footClear){p.x=x;p.z=z;}
+        else if(p.grounded&&api.density){
+          // Search the lowest clearance instead of getting stuck when one fixed step fails.
+          for(let lift=.05;lift<=.551;lift+=.05){if(!free(p.x,p.z,RADIUS,y+lift)||!free(x,z,RADIUS,y+lift))continue;
+            if([[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]].some(([ax,az])=>api.density(x+ax,y+lift+.01,z+az)>0))continue;
+            let ceiling=false;for(let h=.1;h<=lift+.01;h+=.1)if(api.density(p.x,y+1.8+h,p.z)>0||api.density(x,y+1.8+h,z)>0){ceiling=true;break;}if(ceiling)continue;
+            p.x=x;p.z=z;p.airY=y+lift;p.vy=0;p.stepOffset=(p.stepOffset||0)-lift;p.grounded=false;break;
+          }
+        }
       }
     }
     return p;

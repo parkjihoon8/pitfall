@@ -49,7 +49,7 @@
       const dirty=[];for(let x=Math.floor((c.x-r)/chunkSize);x<=Math.floor((c.x+r)/chunkSize);x++)for(let z=Math.floor((c.z-r)/chunkSize);z<=Math.floor((c.z+r)/chunkSize);z++)dirty.push([x,z]);
       return {cut:{...c},dirty};
     }
-    function free(x,z,r=.38,airY=0){for(const y of [.18,.6,1.15,1.75])for(let a=0;a<Math.PI*2;a+=Math.PI/4)if(density(x+Math.cos(a)*r,y+airY,z+Math.sin(a)*r)>-.025)return false;return true;}
+    function free(x,z,r=.38,airY=0){for(const y of [.22,.6,1.15,1.75])for(let a=0;a<Math.PI*2;a+=Math.PI/4)if(density(x+Math.cos(a)*r,y+airY,z+Math.sin(a)*r)>-.01)return false;return true;}
     function cleanup(at){
       // Components connected to the sampling boundary or floor remain supported.
       // Only small, fully enclosed solid components become air, in both physics and mesh.
