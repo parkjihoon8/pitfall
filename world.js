@@ -45,7 +45,7 @@
           for(let lift=.05;lift<=.551;lift+=.05){if(!free(p.x,p.z,RADIUS,y+lift)||!free(x,z,RADIUS,y+lift))continue;
             if([[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]].some(([ax,az])=>api.density(x+ax,y+lift+.01,z+az)>0))continue;
             let ceiling=false;for(let h=.1;h<=lift+.01;h+=.1)if(api.density(p.x,y+1.8+h,p.z)>0||api.density(x,y+1.8+h,z)>0){ceiling=true;break;}if(ceiling)continue;
-            p.x=x;p.z=z;p.airY=y+lift;p.vy=0;p.stepOffset=(p.stepOffset||0)-lift;p.grounded=false;break;
+            p.x=x;p.z=z;p.airY=y+lift;p.vy=0;p.grounded=true;break;
           }
         }
       }
@@ -60,12 +60,18 @@
   function staminaState(){return {value:100,delay:0,exhausted:false};}
   function jump(p,s){
     if((api.density?!p.grounded:p.airY>0)||s.value<4.5||s.exhausted||!free(p.x,p.z,RADIUS,p.airY+1.2))return false;
-    s.value-=4.5;s.delay=.5;if(s.value<=0)s.exhausted=true;p.vy=6.6;p.airY+=.001;p.grounded=false;return true;
+    s.value-=4.5;s.delay=.5;if(s.value<=0)s.exhausted=true;p.vy=6.6;p.airY+=.001;p.grounded=false;p.jumping=true;return true;
   }
   function gravity(p,dt){
+    if(api.density&&p.grounded&&p.vy<=0&&!p.jumping){
+      const supported=y=>[[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]].some(([dx,dz])=>api.density(p.x+dx,y,p.z+dz)>0);
+      for(let drop=.025;drop<=.551;drop+=.025){if(!supported(p.airY-drop))continue;let high=p.airY-drop+.025,low=p.airY-drop;for(let i=0;i<6;i++){const mid=(high+low)/2;if(supported(mid))low=mid;else high=mid;}
+        if(free(p.x,p.z,RADIUS,high)){p.airY=high;p.vy=0;p.landingSpeed=0;return;}break;
+      }
+    }
     if(api.density){p.landingSpeed=0;p.vy-=18*dt;const travel=p.vy*dt,steps=Math.max(1,Math.ceil(Math.abs(travel)/.06));p.grounded=false;
       for(let i=0;i<steps;i++){const y=p.airY+travel/steps;let blocked=false;for(const [dx,dz] of [[0,0],[.25,0],[-.25,0],[0,.25],[0,-.25]])if(api.density(p.x+dx,y+(travel<0?0:1.8),p.z+dz)>0)blocked=true;
-        if(blocked){if(travel<0){p.grounded=true;p.landingSpeed=p.vy;if(p.airY>=0&&p.airY<.1&&api.density(p.x,0,p.z)===0)p.airY=0;}p.vy=0;break;}p.airY=y;}return;}
+        if(blocked){if(travel<0){p.grounded=true;p.jumping=false;p.landingSpeed=p.vy;if(p.airY>=0&&p.airY<.1&&api.density(p.x,0,p.z)===0)p.airY=0;}p.vy=0;break;}p.airY=y;}return;}
     if(p.airY>0){p.vy-=18*dt;p.airY=Math.max(0,p.airY+p.vy*dt);if(p.airY===0)p.vy=0;}
   }
   function canSprint(s,requested){return requested&&!s.exhausted&&s.value>0;}
@@ -75,7 +81,8 @@
     if(s.exhausted&&s.value>=25&&!requested)s.exhausted=false;
     return s;
   }
-  const api={slices,bounds,obstacles,box,circle,free,move,direction,staminaState,canSprint,updateStamina,jump,gravity,setUnderground,RADIUS,Z_MIN,Z_MAX};
+  function cameraFeet(p,dt){if(!Number.isFinite(p.viewY)||!p.grounded||Math.abs(p.viewY-p.airY)>1)p.viewY=p.airY;else p.viewY+=(p.airY-p.viewY)*(1-Math.exp(-16*dt));return p.viewY;}
+  const api={slices,bounds,obstacles,box,circle,free,move,direction,staminaState,canSprint,updateStamina,jump,gravity,cameraFeet,setUnderground,RADIUS,Z_MIN,Z_MAX};
   root.PitfallWorld=api;
   if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

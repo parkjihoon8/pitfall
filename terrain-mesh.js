@@ -22,6 +22,16 @@
         else{const a=lerp(solid[0],empty[0]),b=lerp(solid[0],empty[1]),c=lerp(solid[1],empty[0]),d=lerp(solid[1],empty[1]);tri(a,b,c,air);tri(b,d,c,air);}
       }
     }
+    // Narrow overlap at chunk borders seals rasterisation hairlines without smoothing rock faces.
+    const originalLength=positions.length;
+    for(let i=0;i<originalLength;i+=9)for(let e=0;e<3;e++){
+      const a=positions.slice(i+e*3,i+e*3+3),b=positions.slice(i+((e+1)%3)*3,i+((e+1)%3)*3+3);
+      if(Math.hypot(...a.map((v,k)=>v-b[k]))<1e-7)continue;
+      for(const [axis,plane,offset] of [[0,cx*4,-.025],[0,(cx+1)*4,.025],[2,cz*4,-.025],[2,(cz+1)*4,.025]]){
+        if(Math.abs(a[axis]-plane)>1e-6||Math.abs(b[axis]-plane)>1e-6)continue;
+        const c=a.slice(),d=b.slice();c[axis]+=offset;d[axis]+=offset;positions.push(...a,...b,...c,...b,...d,...c);
+      }
+    }
     return positions;
   }
   root.PitfallTerrainMesh={build};if(typeof module!=='undefined')module.exports=root.PitfallTerrainMesh;
