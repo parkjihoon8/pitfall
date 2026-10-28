@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pitfall — 붉은 협곡</title>
+  <link rel="stylesheet" href="canyon.css">
+  <link rel="stylesheet" href="canyon-hud.css">
+  <link rel="stylesheet" href="crafting.css">
+</head>
+<body>
+  <header class="hud">
+    <div><div class="wordmark">PITFALL</div><div class="location" id="zone">붉은 협곡 · 기지 주변</div><div class="objective" id="objective">첫 곡괭이 · 폐광에서 재료 모으기</div></div>
+    <div class="north">FIELD SURVEY / 01<b id="heading">000°</b></div>
+  </header>
+  <div class="crosshair" aria-hidden="true"></div>
+  <div class="coords" id="coords" hidden aria-live="polite"></div>
+  <div class="hint" id="hint"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="hotbar" id="hotbar" role="group" aria-label="3칸 인벤토리"></div>
+  <div class="hotbar-help">휠 / 1·2·3 전환 · Q 내려놓기</div>
+  <section class="craft-overlay" id="craft-overlay" hidden>
+    <div class="craft-dialog" role="dialog" aria-modal="true" aria-labelledby="craft-title">
+      <div class="craft-heading"><h2 id="craft-title">기지 제작대</h2><button class="craft-close" id="craft-close">닫기</button></div>
+      <p id="craft-description">도구와 기지 시설을 제작하세요.</p>
+      <label for="recipe-select">제작할 도구</label><select id="recipe-select" aria-label="제작할 도구"><option value="pickaxe">돌 곡괭이</option><option value="quartz_pickaxe">수정 곡괭이</option><option value="emerald_pickaxe">에메랄드 곡괭이</option><option value="ruby_pickaxe">루비 곡괭이</option></select>
+      <div class="recipe"><div class="recipe-title"><span id="recipe-icon"></span><div><h3 id="recipe-name">돌 곡괭이</h3><span id="recipe-power">레시피 · 도구 1개</span></div></div>
+      <ul class="ingredients" id="ingredients"></ul>
+      <button class="craft-button" id="craft-button">곡괭이 만들기</button><p class="craft-feedback" id="craft-feedback" role="status"></p></div>
+    </div>
+  </section>
+  <section class="stamina" aria-label="스태미나">
+    <div class="stamina-label"><span>스태미나</span><span id="stamina-value">100 / 100</span></div>
+    <div id="stamina-bar" class="stamina-track" role="progressbar" aria-label="스태미나" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="stamina-fill"></div></div>
+    <small id="stamina-status">SHIFT · 달리기</small>
+  </section>
+  <aside class="minimap" aria-label="주변 지형 미니맵">
+    <div class="map-title">주변 지형 <span>N ↑</span></div>
+    <canvas id="minimap" width="320" height="320" role="img" aria-label="현재 위치, 시선 방향, 협곡 벽과 기지"></canvas>
+    <div class="map-legend">▲ 나 <span>■ 기지</span><span>반경 35m</span></div>
+  </aside>
+  <section class="menu" id="menu">
+    <h1>협곡 아래, 우리의 작은 기지.</h1>
+    <p id="message">협곡 바닥에서 재료를 모아 곡괭이를 만드세요.<br>양쪽 암벽을 조금씩 파며 숨겨진 공간을 찾아보세요.</p>
+    <button id="enter" disabled>협곡을 준비하는 중…</button>
+    <button id="respawn" class="reset-game">기지에서 리스폰 · 아이템 유지</button>
+    <button id="reset-game" class="reset-game">게임 초기화</button>
+    <div id="reset-confirm" class="reset-confirm" hidden role="group" aria-label="게임 초기화 확인"><p>인벤토리와 파낸 지형이 삭제되고 폐광 위치가 새로 정해집니다. 처음부터 시작할까요?</p><div><button id="reset-cancel">취소</button><button id="reset-yes">초기화하고 시작</button></div></div>
+    <small>클릭하면 마우스 시점이 켜집니다. ESC로 일시정지.<br>마우스 잠금이 안 되면 클릭 드래그 또는 방향키로 시점 이동.</small>
+  </section>
+  <footer class="controls">
+    <div><span><kbd>WASD</kbd>이동</span><span><kbd>SPACE</kbd>점프</span><span><kbd>SHIFT</kbd>달리기</span><span><kbd>좌클릭 / E</kbd>줍기·제작대</span></div>
+    <a href="#credits" id="credits-link">에셋 출처 ↗</a>
+  </footer>
+  <aside class="credits" id="credits">
+    <button id="close-credits" aria-label="출처 닫기">×</button><h2>사용한 3D 에셋</h2>
+    <a href="https://kenney.nl/assets/nature-kit" target="_blank" rel="noopener">Kenney · Nature Kit</a><br>바위, 선인장, 관목, 풀 — CC0<br>
+    <a href="https://kenney.nl/assets/survival-kit" target="_blank" rel="noopener">Kenney · Survival Kit</a><br>작업대, 상자, 통, 침낭, 도구, 목재, 돌 — CC0<br>
+    Three.js · MIT<br>협곡, 기지, 갱도, 철로와 광차는 직접 구성했습니다.
+  </aside>
+  <script src="three.min.js"></script>
+  <script src="assets.js"></script>
+  <script src="world.js"></script>
+  <script src="inventory.js"></script>
+  <script src="tool-models.js"></script>
+  <script src="resources.js"></script>
+  <script src="terrain-field.js"></script>
+  <script src="terrain-mesh.js"></script>
+  <script src="terrain-runtime.js"></script>
+  <script src="equipment.js"></script>
+  <script src="vitals.js"></script>
+  <script src="exploration.js"></script>
+  <script src="canyon.js"></script>
+</body>
+</html>

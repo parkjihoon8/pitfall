@@ -1,0 +1,14 @@
+.stamina{position:fixed;bottom:70px;left:32px;width:224px;padding:12px 14px;background:#193c39dd;border:1px solid #e9e5bc33;border-radius:5px;pointer-events:none}
+.health-panel{position:fixed;bottom:178px;left:32px;width:224px;padding:10px 14px;background:#193c39dd;border:1px solid #e9e5bc33;border-radius:5px;font-size:11px;pointer-events:none}.health-panel span{float:right}.health-track{height:7px;background:#182d29;margin-top:8px;border-radius:3px;overflow:hidden}.health-track div{height:100%;background:#df8d79}.rest-fade{position:fixed;inset:0;background:#070c0b;opacity:0;pointer-events:none;transition:opacity .6s;z-index:30}.rest-fade.dark{opacity:1;pointer-events:auto}@media(max-width:750px){.health-panel{left:16px;bottom:255px;width:160px}}
+.stamina-label{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#f6ecd2}
+.stamina-track{height:8px;margin:9px 0 7px;background:#0b2527;border-radius:3px;overflow:hidden}
+#stamina-fill{height:100%;width:100%;background:#b8d6a0;transform-origin:left;transition:background .2s}
+.stamina.low #stamina-fill{background:#ecaa70}.stamina.exhausted #stamina-fill{background:#de8266}
+.stamina small{font-size:10px;line-height:1.5;color:#c3d2c2;display:block;min-height:15px}
+.minimap{position:fixed;right:32px;bottom:66px;width:184px;padding:10px;background:#193c39e8;border:1px solid #e9e5bc44;border-radius:5px;pointer-events:none}
+.coords{position:fixed;left:50%;top:74px;transform:translateX(-50%);padding:7px 12px;background:#102c29df;border:1px solid #b9d2bd66;border-radius:4px;color:#f2e5c9;font:12px ui-monospace,Consolas,monospace;letter-spacing:.4px;pointer-events:none;z-index:4}
+.map-title{display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;letter-spacing:.5px}.map-title span{color:#eac28a}
+.scanner-signal{position:fixed;top:145px;left:50%;transform:translateX(-50%);background:#183c38e8;padding:12px 18px;border:1px solid #99d9ad;border-radius:5px;color:#b9edcc;font-size:13px;pointer-events:none}.scanner-signal[hidden]{display:none}
+.minimap canvas{width:162px;height:162px;border:1px solid #b9cdbb44;border-radius:2px}
+.map-legend{display:flex;justify-content:space-between;font-size:9px;color:#b9ddc7;margin-top:8px}.map-legend span:first-child{color:#f6c87f}.map-legend span:last-child{color:#a7bbb1}
+@media(max-width:650px){.stamina{left:16px;bottom:66px;width:160px;padding:10px}.minimap{right:16px;width:134px;padding:8px}.minimap canvas{width:116px;height:116px}.map-legend span:last-child{display:none}.stamina-label{font-size:10px}.menu:not([hidden])~.controls{opacity:.65}}
