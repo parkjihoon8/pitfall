@@ -1,0 +1,6 @@
+(function(root){
+ const clone=x=>JSON.parse(JSON.stringify(x));
+ function diff(a,b,path=[],out=[]){if(JSON.stringify(a)===JSON.stringify(b))return out;if(a&&b&&!Array.isArray(a)&&!Array.isArray(b)&&typeof a==='object'&&typeof b==='object'){for(const key of new Set([...Object.keys(a),...Object.keys(b)]))if(!(key in b))out.push({path:[...path,key],remove:true});else diff(a[key],b[key],[...path,key],out);}else if(Array.isArray(a)&&Array.isArray(b)&&b.length>=a.length&&a.every((v,i)=>JSON.stringify(v)===JSON.stringify(b[i])))out.push({path,append:clone(b.slice(a.length))});else out.push({path,value:clone(b)});return out;}
+ function apply(source,ops){let value=clone(source);for(const op of ops){if(op.path.some(k=>['__proto__','prototype','constructor'].includes(k)))throw Error('Invalid patch');if(!op.path.length){value=op.value;continue;}let parent=value;for(const key of op.path.slice(0,-1))parent=parent[key];const key=op.path.at(-1);if(op.remove)delete parent[key];else if(op.append)parent[key].push(...op.append);else parent[key]=op.value;}return value;}
+ root.PitfallProtocol={diff,apply};if(typeof module!=='undefined')module.exports=root.PitfallProtocol;
+})(typeof window!=='undefined'?window:globalThis);

@@ -1,4 +1,5 @@
 window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,renderBag,toast,giveLoot}){
+  const localStorage=window.PitfallStorage||window.localStorage,online=window.PitfallSession;
   let state={placed:[],harvested:[],headlamp:false};try{Object.assign(state,JSON.parse(localStorage.getItem('pitfall-exploration-v1'))||{});}catch{}
   if(!state.headlampEquipped)state.headlamp=false;
   const gear=document.createElement('div');gear.style.cssText='position:fixed;right:24px;top:110px;color:#e3faff;font:14px sans-serif;pointer-events:none';document.body.append(gear);
@@ -11,14 +12,14 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
   for(const d of state.placed)if(['ladder','torch'].includes(d.id)&&[d.x,d.y,d.z].every(Number.isFinite))placed(d);
   function bush(x,y,z,id){if(state.harvested.includes(id))return;const g=new T.Group();g.position.set(x,y,z);g.userData.interaction={kind:'flora',id};for(let i=0;i<7;i++){const a=i*2.4,b=new T.Vector3(Math.cos(a)*.55,.4+(i%3)*.2,Math.sin(a)*.55);rod(g,new T.Vector3(),b,.035,wood);rod(g,b,b.clone().add(new T.Vector3(.1,.25,-.1)),.018,wood);}scene.add(g);flora.set(id,g);}
   for(let z=-12,i=0;z>world.Z_MIN+10;z-=17,i++){const b=world.bounds(z);bush(i%2?b.left+2:b.right-2,0,z,'thorn-'+i);}const c=excavation.dig.chamber;for(let i=0;i<4;i++)bush(c.x-2+i,0,c.z+3,'root-'+i);
-  function harvest(id){const g=flora.get(id);if(!g)return;g.removeFromParent();flora.delete(id);state.harvested.push(id);giveLoot('stick');persist();}
-  function use(hit){const slot=bag.slots[bag.selected];if(!slot){if(state.headlampEquipped){bag.slots[bag.selected]={id:'headlamp',count:1};state.headlampEquipped=false;state.headlamp=false;persist();renderBag();toast('헤드램프를 벗었습니다.');return true;}return false;}
+  function harvest(id){if(online){online.action({type:'harvest',id});return;}const g=flora.get(id);if(!g)return;g.removeFromParent();flora.delete(id);state.harvested.push(id);giveLoot('stick');persist();}
+  function use(hit){const slot=bag.slots[bag.selected];if(online&&(!slot||slot.id==='headlamp')){online.action({type:'equip'});return true;}if(!slot){if(state.headlampEquipped){bag.slots[bag.selected]={id:'headlamp',count:1};state.headlampEquipped=false;state.headlamp=false;persist();renderBag();toast('헤드램프를 벗었습니다.');return true;}return false;}
     if(slot.id==='headlamp'){if(state.headlampEquipped){toast('이미 헤드램프를 쓰고 있습니다.');return true;}bag.slots[bag.selected]=null;state.headlampEquipped=true;state.headlamp=true;toast('헤드램프 착용 · 맨손 우클릭으로 벗기');persist();renderBag();return true;}
     if(!['ladder','torch'].includes(slot.id))return false;
     if(!hit||!['rock','roof'].includes(hit.kind)){toast('가까운 암벽이나 땅을 겨냥하세요.');return true;}
     const v=hit.point;if(slot.id==='ladder'&&(v.y>0||Math.abs(hit.normal.y)>.5)){toast('사다리는 지하 수직 벽면에만 설치할 수 있습니다.');return true;}
     const y=slot.id==='ladder'?Math.min(-2.5,v.y-1):v.y;if(v.y>3.4){toast('보호 구역에는 설치할 수 없습니다.');return true;}
-    const d={id:slot.id,x:v.x+hit.normal.x*.2,y,z:v.z+hit.normal.z*.2,yaw:Math.atan2(hit.normal.x,hit.normal.z)};state.placed.push(d);placed(d);if(--slot.count===0)bag.slots[bag.selected]=null;persist();renderBag();toast('설치 완료 · 사다리 가까이에서 W/S로 오르내리기');return true;
+    const d={id:slot.id,x:v.x+hit.normal.x*.2,y,z:v.z+hit.normal.z*.2,yaw:Math.atan2(hit.normal.x,hit.normal.z)};if(online){online.action({type:'place',at:{x:d.x,y:d.y,z:d.z},yaw:d.yaw});return true;}state.placed.push(d);placed(d);if(--slot.count===0)bag.slots[bag.selected]=null;persist();renderBag();toast('설치 완료 · 사다리 가까이에서 W/S로 오르내리기');return true;
   }
   let attached=null;
   const near=d=>Math.hypot(d.x-p.x,d.z-p.z)<1.45&&p.airY>=d.y-.4&&p.airY<=d.y+2.7;
@@ -47,5 +48,5 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
     }
     p.vy=0;p.landingSpeed=0;p.jumping=false;p.grounded=false;return true;
   }
-  return {use,harvest,update,ladderNear,climbing};
+  return {apply(next){const seen=new Set(state.placed.map(v=>JSON.stringify(v)));for(const v of next.placed||[])if(!seen.has(JSON.stringify(v)))placed(v);for(const id of next.harvested||[]){flora.get(id)?.removeFromParent();flora.delete(id);}state=next;},use,harvest,update,ladderNear,climbing};
 };

@@ -1,8 +1,9 @@
 /* Pitfall: first-person canyon study. Kenney CC0 meshes, locally bundled Three.js. */
-(() => {
+(async() => {
   'use strict';
   const menu=document.getElementById('menu'), message=document.getElementById('message');
   try {
+    const online=await window.PitfallOnline?.ready(),localStorage=window.PitfallStorage||window.localStorage;
     if(!window.THREE||!window.PITFALL_ASSETS)throw new Error('게임 파일이 누락되었습니다. 같은 폴더의 엔진·에셋 파일을 확인해 주세요.');
     const T=THREE, world=PitfallWorld, scene=new T.Scene();
     const sky=0xb4d5cb;
@@ -196,11 +197,12 @@
     const p={x:3.7,z:22,yaw:.28,pitch:0,airY:0,vy:0},keys=new Set();let playing=false,dragging=false,last=performance.now(),bob=0,crafting=false;
     const inv=PitfallInventory;let bag=inv.fresh();
     try{bag=inv.restore(localStorage.getItem('pitfall-crafting-v1'));}catch{}
+    if(online)Object.assign(p,online.state.player.position);
     if(bag.anvilBuilt)installAnvil();
     let activeStation='bench';
     if(excavation.legacyMigration){bag.drops.forEach((d,i)=>{if(!world.free(d.x,d.z,.2)){d.x=4+i%4*.6;d.z=22+Math.floor(i/4)%4*.6;}});try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
     const pickups=new Map();
-    for(const data of new Map([...mine.resources,...bag.drops].map(d=>[d.key,d])).values())if(!bag.collected.includes(data.key))pickups.set(data.key,mine.spawn(data));
+    for(const data of new Map([...(online?[]:mine.resources),...bag.drops].map(d=>[d.key,d])).values())if(!bag.collected.includes(data.key))pickups.set(data.key,mine.spawn(data));
     let industry=null;const lootPhysics=buildLooseItems({bag,pickups,density:(x,y,z)=>Math.max(excavation.dig.density(x,y,z),industry?.beltDensity(x,y,z)??-Infinity),items:inv.ITEMS});
     function mergeStones(){lootPhysics.merge();}
     const stamina=world.staminaState();let sprinting=false;
@@ -225,7 +227,7 @@
       pickaxe:'<path d="M15 41L30 12" stroke="#cda06b" stroke-width="6" stroke-linecap="round"/><path d="M9 12Q29 2 41 23L29 16L9 18Z" fill="#acc5bc"/>'
     }[id]||'')+'</svg>';
     function toast(text){toastNode.textContent=text;toastUntil=performance.now()+3300;}
-    function save(){mergeStones();try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));localStorage.setItem('pitfall-terrain-v2',excavation.dig.serialize());}catch{toast('이 브라우저에서는 자동 저장이 제한됩니다. 현재 플레이는 계속할 수 있습니다.');}}
+    function save(){if(online)return;mergeStones();try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));localStorage.setItem('pitfall-terrain-v2',excavation.dig.serialize());}catch{toast('이 브라우저에서는 자동 저장이 제한됩니다. 현재 플레이는 계속할 수 있습니다.');}}
     const heldScene=new T.Scene(),heldCamera=new T.PerspectiveCamera(76,innerWidth/innerHeight,.01,5),heldRoot=new T.Group();
     heldScene.add(new T.HemisphereLight(0xffedcf,0x577b6d,2.8),heldRoot);let heldId=null;const toolMaterials={};
     function equip(){
@@ -282,7 +284,7 @@
       const data={key:'mined-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),id,count:1,x:p.x,y:p.airY,z:p.z};bag.drops.push(data);pickups.set(data.key,mine.spawn(data));toast('가방이 가득 찼습니다. '+inv.ITEMS[id].name+'을 발밑에 내려놓았습니다.');
     }
     function interact(drillDown=false,collect=false){
-      if(!playing||crafting||vitals.resting)return;let hit=findTarget(!collect&&!!inv.TOOLS[heldId]);
+      if(!playing||crafting||vitals.resting)return;if(online&&!online.connected)return toast('서버에 다시 연결한 뒤 사용할 수 있습니다.');let hit=findTarget(!collect&&!!inv.TOOLS[heldId]);
       if(drillDown&&inv.TOOLS[heldId]?.drill){hit=null;for(let y=p.airY+.1;y>=p.airY-3;y-=.05){if(excavation.dig.density(p.x,y,p.z)>=0){hit={kind:'rock',point:new T.Vector3(p.x,y,p.z),normal:new T.Vector3(0,1,0)};break;}}}
       if(!hit)return;
       if(hit.kind==='bed'){clear();vitals.sleep();return;}
@@ -295,6 +297,7 @@
         const now=performance.now();if(now-lastStrike<inv.TOOLS[heldId].cooldown)return;
         if(stamina.value<1||stamina.exhausted)return toast('숨을 고른 뒤 다시 캐세요.');
         lastStrike=now;swing=.55;stamina.value-=1;stamina.delay=.4;
+        if(online){online.action({type:'mine',hit:{kind:hit.kind,id:hit.id,point:{x:hit.point.x,y:hit.point.y,z:hit.point.z},normal:{x:hit.normal.x,y:hit.normal.y,z:hit.normal.z}}});return;}
         const result=excavation.strike(hit,p,inv.TOOLS[heldId]);for(const id of result?.loot||[])giveLoot(id);
         if(result?.warning)toast(result.warning);target=null;save();renderBag();return;
       }
@@ -308,6 +311,7 @@
         craftOverlay.dataset.station=activeStation;
         crafting=true;playing=false;clear();menu.hidden=true;craftOverlay.hidden=false;document.exitPointerLock?.();renderRecipe();document.getElementById('craft-close').focus();return;
       }
+      if(online){if(hit.data)online.action({type:'pickup',key:hit.data.key});return;}
       const data=bag.drops.find(d=>d.key===hit.data.key)||hit.data,capacity=bag.slots.reduce((n,s)=>n+(!s?inv.ITEMS[data.id].max:s.id===data.id?inv.ITEMS[data.id].max-s.count:0),0),amount=Math.min(data.count,capacity);
       if(!amount)return toast('가방이 가득 찼습니다. 공간을 비워주세요.');
       const full=amount===data.count,result=inv.pickup(bag,data.id,amount,full?data.key:undefined);
@@ -319,6 +323,7 @@
     document.getElementById('recipe-icon').innerHTML=icon('pickaxe');
     document.getElementById('craft-close').onclick=()=>closeCraft(true);
     craftButton.onclick=()=>{
+      if(online){online.action({type:'craft',station:activeStation,output:recipeSelect.value});return;}
       const output=recipeSelect.value,result=inv.craft(bag,craftAllowed(),output);if(!result.ok){renderRecipe();return toast(result.reason);}
       if(bag.anvilBuilt)installAnvil();
       industry.install();
@@ -328,6 +333,7 @@
     };
     craftOverlay.addEventListener('keydown',e=>{if(e.code==='Tab'){e.preventDefault();const controls=[document.getElementById('craft-close'),...recipeGrid.querySelectorAll('button'),...(craftButton.disabled?[]:[craftButton])],i=controls.indexOf(document.activeElement);controls[(i+(e.shiftKey?-1:1)+controls.length)%controls.length].focus();}});
     function dropSelected(){
+      if(online){online.action({type:'drop'});return;}
       if(p.airY>0)return toast('착지한 뒤 내려놓으세요.');if(!bag.slots[bag.selected])return;
       const v=world.direction(p.yaw,1,0),x=p.x+v.x*1.25,z=p.z+v.z*1.25;
       if(!world.free(x,z,.15,p.airY))return toast('앞쪽에 내려놓을 공간이 없습니다.');
@@ -369,7 +375,7 @@
     document.getElementById('respawn').onclick=()=>{clear();vitals.respawn();p.grounded=true;p.landingSpeed=0;save();playing=true;menu.hidden=true;lock();};
     document.getElementById('reset-game').onclick=()=>{resetConfirm.hidden=false;document.getElementById('reset-cancel').focus();};
     document.getElementById('reset-cancel').onclick=()=>{resetConfirm.hidden=true;document.getElementById('reset-game').focus();};
-    document.getElementById('reset-yes').onclick=()=>{try{for(const k of ['pitfall-industry-v1','pitfall-exploration-v1','pitfall-health-v1','pitfall-equipment-v1','pitfall-crafting-v1','pitfall-terrain-v2','pitfall-dig-v1','pitfall-dig-v1-backup'])localStorage.removeItem(k);location.reload();}catch{toast('저장소를 초기화하지 못했습니다. 브라우저 설정을 확인하세요.');}};
+    document.getElementById('reset-yes').onclick=()=>{if(online)return toast('온라인 월드는 여기서 초기화할 수 없습니다.');try{for(const k of ['pitfall-industry-v1','pitfall-exploration-v1','pitfall-health-v1','pitfall-equipment-v1','pitfall-crafting-v1','pitfall-terrain-v2','pitfall-dig-v1','pitfall-dig-v1-backup'])localStorage.removeItem(k);location.reload();}catch{toast('저장소를 초기화하지 못했습니다. 브라우저 설정을 확인하세요.');}};
     document.addEventListener('pointerlockchange',()=>{lookX=lookY=0;ignoreMouseUntil=performance.now()+80;if(document.pointerLockElement!==canvas&&playing)pause();});
     document.addEventListener('pointerlockerror',()=>{message.textContent='마우스를 누른 채 드래그하거나 방향키로 둘러보세요.';});
     canvas.addEventListener('mousedown',e=>{if(playing&&e.button===0){dragging=true;dragDistance=0;if(document.pointerLockElement===canvas)interact(!!inv.TOOLS[heldId]?.drill);}});
@@ -398,9 +404,10 @@
     document.getElementById('close-credits').onclick=()=>document.getElementById('credits').classList.remove('open');
     function tick(now){
       const dt=Math.min(.05,(now-last)/1000);last=now;
+      online?.update(dt);
       if((playing||industry.opened)&&!vitals.resting)industry.update(dt);
       if(playing&&!vitals.resting){
-        if(lootPhysics.update(dt)){try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
+        if(!online&&lootPhysics.update(dt)){try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
         const blend=1-Math.exp(-35*dt),dx=lookX*blend,dy=lookY*blend;lookX-=dx;lookY-=dy;p.yaw-=dx*.0022;p.pitch=Math.max(-pitchLimit,Math.min(pitchLimit,p.pitch-dy*.0022));
         if(keys.has('ArrowLeft'))p.yaw+=dt*1.5;if(keys.has('ArrowRight'))p.yaw-=dt*1.5;
         if(keys.has('ArrowUp'))p.pitch=Math.min(pitchLimit,p.pitch+dt);if(keys.has('ArrowDown'))p.pitch=Math.max(-pitchLimit,p.pitch-dt);
@@ -454,6 +461,9 @@
     window.pitfallDebug.mining=()=>({summary:excavation.summary(),pending:excavation.pending,target:target?{kind:target.kind,point:target.point?.toArray(),normal:target.normal?.toArray(),id:target.id,gem:target.gem}:null,terrain:excavation.diagnostics(),veins:{...excavation.dig.state.veins},swing});
     window.pitfallDebug.equipment=()=>JSON.parse(JSON.stringify(equipment.state));
     window.pitfallDebug.industry=()=>JSON.parse(JSON.stringify(industry.state));
+    window.pitfallDebug.online=()=>online?{id:online.id,connected:online.connected,revision:online.state.revision,peers:online.peers}:null;
+    if(online){let lastTerrain=JSON.stringify(online.state.world.terrain);online.bind((next,previous)=>{const selected=bag.selected;Object.assign(bag,inv.restore(JSON.stringify({...next.world.crafting,...next.player.crafting})));bag.selected=selected;if(bag.anvilBuilt)installAnvil();const terrain=JSON.stringify(next.world.terrain);if(terrain!==lastTerrain){excavation.apply(next.world.terrain);lastTerrain=terrain;}equipment.apply({...next.world.equipment,...next.player.equipment});exploration.apply({...next.world.exploration,...next.player.exploration});if(next.world.industry)industry.apply(next.world.industry);vitals.apply(next.player.health);if(next.player.health===100&&previous.player.health<100)stamina.value=100;const movedByServer=next.player.position&&previous.player.position&&(next.player.position.x!==previous.player.position.x||next.player.position.z!==previous.player.position.z)&&Math.hypot(next.player.position.x-p.x,next.player.position.z-p.z)>5;if(movedByServer||next.player.teleport!==previous.player.teleport){Object.assign(p,next.player.position);p.vy=0;p.viewY=p.airY;}const wanted=new Map(bag.drops.map(d=>[d.key,d]));for(const [key,obj] of pickups)if(!wanted.has(key)){obj.removeFromParent();pickups.delete(key);}for(const [key,d] of wanted){const obj=pickups.get(key);if(obj){obj.userData.interaction.data=d;obj.position.set(d.x,(d.y||0)+.05,d.z);}else pickups.set(key,mine.spawn(d));}target=null;renderBag();},()=>({selected:bag.selected,position:{x:p.x,z:p.z,airY:p.airY,yaw:p.yaw,pitch:p.pitch}}),scene,T);}
+    window.PitfallOnline?.setSource(()=>{save();const snapshot=PitfallWorldSave.capture(window.localStorage),copy=JSON.parse(JSON.stringify(bag));copy.drops=[...pickups.values()].map(obj=>({...obj.userData.interaction.data,x:obj.position.x,y:obj.position.y-.05,z:obj.position.z}));snapshot.keys['pitfall-crafting-v1']=JSON.stringify(copy);return snapshot;});
     renderBag();
     document.getElementById('enter').disabled=false;document.getElementById('enter').textContent='협곡 탐험 시작';
     requestAnimationFrame(tick);

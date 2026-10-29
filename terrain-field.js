@@ -67,7 +67,8 @@
       return {removed:removed.length,dirty:[...dirty].map(k=>k.split(',').map(Number))};
     }
     function collapse(at){const removed=[];for(let i=cuts.length-1;i>=0;i--)if(Math.hypot(cuts[i].x-at.x,cuts[i].z-at.z)<1.1){removed.push(cuts[i]);cuts.splice(i,1);}bins.clear();cuts.forEach(index);state.collapses++;return removed;}
-    return {density,strike,free,state,collapse,cleanup,chamber:{...chamber},get cuts(){return cuts.map(c=>({...c}));},serialize:()=>JSON.stringify({version:2,seed,cuts,...state}),get count(){return cuts.length;}};
+    function replace(snapshot){if(snapshot.seed!==seed)throw Error('다른 월드의 지형입니다.');cuts.splice(0,cuts.length,...snapshot.cuts.map(c=>({...c})));bins.clear();cuts.forEach(index);for(const k of Object.keys(state))delete state[k];for(const [k,v] of Object.entries(snapshot))if(!['seed','cuts','version'].includes(k))state[k]=v;}
+    return {density,strike,free,state,collapse,cleanup,replace,chamber:{...chamber},get cuts(){return cuts.map(c=>({...c}));},serialize:()=>JSON.stringify({version:2,seed,cuts,...state}),get count(){return cuts.length;}};
   }
   root.PitfallTerrainField={create};if(typeof module!=='undefined')module.exports=root.PitfallTerrainField;
 })(typeof window!=='undefined'?window:globalThis);

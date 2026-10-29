@@ -1,4 +1,5 @@
 window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
+  const localStorage=window.PitfallStorage||window.localStorage;
   let raw,legacyMigration=false;try{raw=localStorage.getItem('pitfall-terrain-v2');if(!raw&&localStorage.getItem('pitfall-dig-v1')){legacyMigration=true;localStorage.setItem('pitfall-dig-v1-backup',localStorage.getItem('pitfall-dig-v1'));}}catch{}
   const field=PitfallTerrainField.create(world,raw),chunks=new Map(),group=new T.Group(),effects=new T.Group();scene.add(group,effects);
   try{localStorage.setItem('pitfall-terrain-v2',field.serialize());}catch{}
@@ -87,10 +88,10 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   let cleanClock=0,lastCleanCount=-1;const checked=new Map();
   function update(dt,p){
     if(update.depositCount!==field.count){update.depositCount=field.count;for(const d of deposits)deposit(d);}
-    for(const v of veins){if(!v.g.parent)continue;const q=v.g.position;if(Math.hypot(q.x-p.x,q.z-p.z)>30)continue;const supported=[[.32,0,0],[-.32,0,0],[0,.32,0],[0,-.32,0],[0,0,.32],[0,0,-.32]].some(([x,y,z])=>field.density(q.x+x,q.y+y,q.z+z)>.01);if(!supported){v.vy=(v.vy||0)-9*dt;const next=q.y+v.vy*dt;if(field.density(q.x,next-.18,q.z)<0){q.y=next;const d=deposits.find(d=>d.id===v.id);if(d)d.y=next;}else v.vy=0;}else v.vy=0;}
+    for(const v of veins){if(window.PitfallSession||!v.g.parent)continue;const q=v.g.position;if(Math.hypot(q.x-p.x,q.z-p.z)>30)continue;const supported=[[.32,0,0],[-.32,0,0],[0,.32,0],[0,-.32,0],[0,0,.32],[0,0,-.32]].some(([x,y,z])=>field.density(q.x+x,q.y+y,q.z+z)>.01);if(!supported){v.vy=(v.vy||0)-9*dt;const next=q.y+v.vy*dt;if(field.density(q.x,next-.18,q.z)<0){q.y=next;const d=deposits.find(d=>d.id===v.id);if(d)d.y=next;}else v.vy=0;}else v.vy=0;}
     impactLight.intensity=Math.max(0,impactLight.intensity-dt*50);
     cleanClock+=dt;
-    if(cleanClock>2){cleanClock=0;const k=Math.round(p.x*2)+','+Math.round(p.z*2);if(lastCleanCount!==field.count&&checked.get(k)!==field.count){lastCleanCount=field.count;checked.set(k,field.count);
+    if(cleanClock>2&&!window.PitfallSession){cleanClock=0;const k=Math.round(p.x*2)+','+Math.round(p.z*2);if(lastCleanCount!==field.count&&checked.get(k)!==field.count){lastCleanCount=field.count;checked.set(k,field.count);
       const near=field.cuts.filter(c=>Math.hypot(c.x-p.x,c.z-p.z)<2.8);if(near.length){const at=new T.Vector3(p.x-Math.sin(p.yaw)*1.4,1.25,p.z-Math.cos(p.yaw)*1.4),r=field.cleanup(at);for(const [x,z] of r.dirty)rebuild(x,z);if(r.removed){burst(at);try{localStorage.setItem('pitfall-terrain-v2',field.serialize());}catch{}}}
     }}
     const b=world.bounds(p.z),depth=Math.max(b.left-p.x,p.x-b.right,world.Z_MIN-p.z,p.z-world.Z_MAX,-p.airY,0),fade=Math.min(1,depth/2),targetLight=3.5*fade*fade*(3-2*fade);
@@ -104,7 +105,8 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   }
   function drawMap(ctx,X,Z,s){ctx.fillStyle='#51473b';for(const c of field.cuts){ctx.beginPath();ctx.arc(X(c.x),Z(c.z),Math.max(1,c.r*s),0,Math.PI*2);ctx.fill();}if(field.state.discovered){ctx.beginPath();ctx.arc(X(mx),Z(mz),5.5*s,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f3d7a7';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillText('발견한 폐광',X(mx),Z(mz));}}
   const zone=p=>Math.hypot(p.x-mx,p.z-mz)<5.5?'발견한 폐광':p.x<world.bounds(p.z).left||p.x>world.bounds(p.z).right||p.z<world.Z_MIN||p.z>world.Z_MAX?'직접 판 땅굴':null;
-  return {dig:field,legacyMigration,strike,update,drawMap,zone,get shake(){return shake;},get pending(){return !!pending;},summary:()=>({cuts:field.count,discovered:field.state.discovered,collapses:field.state.collapses}),diagnostics:()=>({chamber:{...chamber},cuts:field.cuts,stress,chunks:chunks.size})};
+  function apply(snapshot){const old=field.cuts,oldSet=new Set(old.map(c=>JSON.stringify(c))),newSet=new Set(snapshot.cuts.map(c=>JSON.stringify(c))),dirty=new Set();for(const c of [...old.filter(c=>!newSet.has(JSON.stringify(c))),...snapshot.cuts.filter(c=>!oldSet.has(JSON.stringify(c)))])for(let x=Math.floor((c.x-c.r-.1)/4);x<=Math.floor((c.x+c.r+.1)/4);x++)for(let z=Math.floor((c.z-c.r-.1)/4);z<=Math.floor((c.z+c.r+.1)/4);z++)dirty.add(x+','+z);field.replace(snapshot);deposits=field.state.deposits||[];for(const k of dirty)rebuild(...k.split(',').map(Number));for(const v of veins){if((field.state.veins[v.id]||0)>=3){v.g.removeFromParent();v.g.visible=false;}else{v.g.scale.setScalar(1-(field.state.veins[v.id]||0)*.12);const d=deposits.find(d=>d.id===v.id);if(d)v.g.position.set(d.x,d.y,d.z);}}for(const d of deposits)deposit(d);}
+  return {dig:field,legacyMigration,strike,update,drawMap,zone,apply,get shake(){return shake;},get pending(){return !!pending;},summary:()=>({cuts:field.count,discovered:field.state.discovered,collapses:field.state.collapses}),diagnostics:()=>({chamber:{...chamber},cuts:field.cuts,stress,chunks:chunks.size})};
 };
 
 
