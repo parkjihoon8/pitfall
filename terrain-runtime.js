@@ -69,7 +69,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
     const n=field.state.totalCuts,loot=[];if(n%6===0)loot.push('stone');if(n%43===0)loot.push('stick');
     // Additional visible veins in freshly opened deep rock; existing deposits are untouched.
     const bounds=world.bounds(hit.point.z),depth=Math.max(-hit.point.y,bounds.left-hit.point.x,hit.point.x-bounds.right,world.Z_MIN-hit.point.z,hit.point.z-world.Z_MAX,0);
-    if(depth>=3){let seed=(Math.imul(n,2654435761)^Math.round(chamber.x*1000)^Math.round(chamber.z*1000))>>>0;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};const chance=Math.min(.4,.05+(depth-3)*.02);
+    if(depth>=3){let seed=(Math.imul(n,2654435761)^Math.round(chamber.x*1000)^Math.round(chamber.z*1000))>>>0;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};const chance=.75*Math.min(.4,.05+(depth-3)*.02);
       if(random()<chance){const cut=result.cut,pos=new T.Vector3(cut.x,cut.y,cut.z).addScaledVector(normal,-(cut.r+.18)),id='deep-bonus-v1-'+n;
         if(field.density(pos.x,pos.y,pos.z)>.02&&!deposits.some(d=>d.id===id)){const roll=random(),gem=pos.y< -6&&roll<.2?'diamond':roll<.45?'quartz':roll<.75?'emerald':'ruby',d={id,gem,x:pos.x,y:pos.y,z:pos.z};deposits.push(d);deposit(d);}
       }
