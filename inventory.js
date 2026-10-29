@@ -59,7 +59,7 @@
       if(!v.slots.every(s=>s===null||(ITEMS[s.id]&&Number.isInteger(s.count)&&s.count>0&&s.count<=ITEMS[s.id].max)))return fresh();
       const s=fresh();s.slots=v.slots;s.selected=Number.isInteger(v.selected)&&v.selected>=0&&v.selected<3?v.selected:0;
       s.collected=Array.isArray(v.collected)?v.collected.filter(k=>typeof k==='string'):[];
-      s.drops=Array.isArray(v.drops)?v.drops.filter(d=>typeof d.key==='string'&&ITEMS[d.id]&&Number.isInteger(d.count)&&d.count>0&&d.count<=ITEMS[d.id].max&&Number.isFinite(d.x)&&Number.isFinite(d.z)&&Math.abs(d.x)<90&&d.z>-288&&d.z<60):[];
+      s.drops=Array.isArray(v.drops)?v.drops.filter(d=>typeof d.key==='string'&&ITEMS[d.id]&&Number.isInteger(d.count)&&d.count>0&&d.count<=9999&&Number.isFinite(d.x)&&Number.isFinite(d.z)&&Math.abs(d.x)<90&&d.z>-288&&d.z<60):[];
       s.crafted=Number.isInteger(v.crafted)&&v.crafted>=0?v.crafted:0;s.anvilBuilt=v.anvilBuilt===true;return s;
     }catch{return fresh();}
   }

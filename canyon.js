@@ -200,9 +200,9 @@
     let activeStation='bench';
     if(excavation.legacyMigration){bag.drops.forEach((d,i)=>{if(!world.free(d.x,d.z,.2)){d.x=4+i%4*.6;d.z=22+Math.floor(i/4)%4*.6;}});try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
     const pickups=new Map();
-    for(const data of [...mine.resources,...bag.drops])if(!bag.collected.includes(data.key))pickups.set(data.key,mine.spawn(data));
-    function mergeStones(){let changed=false;const piles=[];for(const d of bag.drops){if(d.id!=='stone')continue;for(const into of piles){if(!d.count)break;if(into.count>=99||Math.hypot(into.x-d.x,into.z-d.z)>3||Math.abs((into.y||0)-(d.y||0))>.6)continue;const n=Math.min(99-into.count,d.count);into.count+=n;d.count-=n;changed=true;const obj=pickups.get(into.key);if(obj)obj.userData.interaction.data=into;}if(d.count)piles.push(d);else{pickups.get(d.key)?.removeFromParent();pickups.delete(d.key);}}if(changed)bag.drops=bag.drops.filter(d=>d.count>0);}
-    mergeStones();
+    for(const data of new Map([...mine.resources,...bag.drops].map(d=>[d.key,d])).values())if(!bag.collected.includes(data.key))pickups.set(data.key,mine.spawn(data));
+    const lootPhysics=buildLooseItems({bag,pickups,density:excavation.dig.density,items:inv.ITEMS});
+    function mergeStones(){lootPhysics.merge();}
     const stamina=world.staminaState();let sprinting=false;
     const staminaPanel=document.querySelector('.stamina'),staminaFill=document.getElementById('stamina-fill'),staminaValue=document.getElementById('stamina-value'),staminaBar=document.getElementById('stamina-bar'),staminaStatus=document.getElementById('stamina-status');
     const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');let lastMap=0,mapExpanded=false;mapCanvas.width=mapCanvas.height=640;
@@ -306,10 +306,12 @@
         craftOverlay.dataset.station=activeStation;
         crafting=true;playing=false;clear();menu.hidden=true;craftOverlay.hidden=false;document.exitPointerLock?.();renderRecipe();document.getElementById('craft-close').focus();return;
       }
-      const data=hit.data,result=inv.pickup(bag,data.id,data.count,data.key);
+      const data=bag.drops.find(d=>d.key===hit.data.key)||hit.data,capacity=bag.slots.reduce((n,s)=>n+(!s?inv.ITEMS[data.id].max:s.id===data.id?inv.ITEMS[data.id].max-s.count:0),0),amount=Math.min(data.count,capacity);
+      if(!amount)return toast('가방이 가득 찼습니다. 공간을 비워주세요.');
+      const full=amount===data.count,result=inv.pickup(bag,data.id,amount,full?data.key:undefined);
       if(!result.ok)return toast(result.reason);
-      const obj=pickups.get(data.key);obj?.removeFromParent();pickups.delete(data.key);target=null;
-      save();renderBag();toast(inv.ITEMS[data.id].name+' +'+data.count);
+      const obj=pickups.get(data.key);if(full){obj?.removeFromParent();pickups.delete(data.key);}else{data.count-=amount;bag.drops=bag.drops.filter(d=>d.key!==data.key);bag.drops.push(data);if(obj)obj.userData.interaction.data=data;}target=null;
+      save();renderBag();toast(inv.ITEMS[data.id].name+' +'+amount+(full?'':' · 나머지는 바닥에 남았습니다.'));
     }
     function closeCraft(resume){crafting=false;craftOverlay.hidden=true;target=null;if(resume){playing=true;menu.hidden=true;lock();}else pause();}
     document.getElementById('recipe-icon').innerHTML=icon('pickaxe');
@@ -391,6 +393,7 @@
     function tick(now){
       const dt=Math.min(.05,(now-last)/1000);last=now;
       if(playing&&!vitals.resting){
+        if(lootPhysics.update(dt)){try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
         const blend=1-Math.exp(-35*dt),dx=lookX*blend,dy=lookY*blend;lookX-=dx;lookY-=dy;p.yaw-=dx*.0022;p.pitch=Math.max(-pitchLimit,Math.min(pitchLimit,p.pitch-dy*.0022));
         if(keys.has('ArrowLeft'))p.yaw+=dt*1.5;if(keys.has('ArrowRight'))p.yaw-=dt*1.5;
         if(keys.has('ArrowUp'))p.pitch=Math.min(pitchLimit,p.pitch+dt);if(keys.has('ArrowDown'))p.pitch=Math.max(-pitchLimit,p.pitch-dt);
