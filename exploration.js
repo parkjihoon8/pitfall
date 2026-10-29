@@ -26,12 +26,13 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
   function release(keys){return keys.has('KeyA')||keys.has('KeyD')||keys.has('Space');}
   function climbing(keys){if(release(keys))return false;const l=ladderNear();return !!l&&((keys.has('KeyW')&&p.airY<Math.min(0,l.y+2.6)-.01)||(keys.has('KeyS')&&p.airY>l.y+.01));}
   function update(dt,keys){lamp.intensity=state.headlampEquipped?22:0;gear.textContent=state.headlampEquipped?'☀ 헤드램프 착용':'';lamp.position.copy(camera.position);lamp.target.position.copy(camera.position).add(camera.getWorldDirection(new T.Vector3()).multiplyScalar(10));
-    const held=bag.slots[bag.selected]?.id;signal.hidden=held!=='scanner';if(held==='scanner'){
+    const held=bag.slots[bag.selected]?.id,scanning=['scanner','gold_scanner'].includes(held),range=held==='gold_scanner'?20:10;signal.hidden=!scanning;if(scanning){
       const distance=t=>Math.hypot(t.x-p.x,t.y-(p.airY+1),t.z-p.z),bearing=t=>(Math.atan2(t.x-p.x,-(t.z-p.z))*180/Math.PI+360)%360,c=excavation.dig.chamber;
-      const targets=(excavation.dig.state.deposits||[]).filter(d=>(excavation.dig.state.veins[d.id]||0)<3&&distance(d)<=10).sort((a,b)=>distance(a)-distance(b)),ore=targets.find(t=>t.gem!=='diamond'),diamond=targets.find(t=>t.gem==='diamond');
+      const targets=(excavation.dig.state.deposits||[]).filter(d=>(excavation.dig.state.veins[d.id]||0)<3&&distance(d)<=range).sort((a,b)=>distance(a)-distance(b)),ore=targets.find(t=>t.gem!=='diamond'),diamond=targets.find(t=>t.gem==='diamond');
       const mineDistance=distance({x:c.x,y:1.5,z:c.z}),mine=mineDistance<=50,relative=(bearing(c)+(p.yaw||0)*180/Math.PI+720)%360,arrow=['↑','↗','→','↘','↓','↙','←','↖'][Math.round(relative/45)%8];
-      const line=t=>PitfallInventory.ITEMS[t.gem].name+' · '+distance(t).toFixed(1)+'m · 방위 '+Math.round(bearing(t))+'°';
-      signal.style.fontSize=mine?'23px':'16px';signal.style.whiteSpace='pre-line';signal.textContent=(mine?'⚠ 폐광 '+arrow+' · '+mineDistance.toFixed(1)+'m · 방위 '+Math.round(bearing(c))+'°\n':'')+(ore?'광맥 신호 · '+line(ore):'10m 이내 일반 광맥 신호 없음')+'\n'+(diamond?'◆ 다이아 전용 신호 · '+line(diamond):'◆ 10m 이내 다이아 신호 없음');
+      const line=t=>PitfallInventory.ITEMS[t.gem].name+' · '+distance(t).toFixed(1)+'m · 방위 '+Math.round(bearing(t))+'° · 깊이 '+Math.max(0,-t.y).toFixed(1)+'m';
+      const metals=['coal','copper','iron','gold'].map(g=>targets.find(t=>t.gem===g)).filter(Boolean);
+      signal.style.fontSize=mine?'20px':'16px';signal.style.whiteSpace='pre-line';signal.textContent=(mine?'⚠ 폐광 '+arrow+' · '+mineDistance.toFixed(1)+'m · 방위 '+Math.round(bearing(c))+'°\n':'')+(ore?'광맥 신호 · '+line(ore):range+'m 이내 일반 광맥 신호 없음')+'\n'+(diamond?'◆ 다이아 전용 신호 · '+line(diamond):'◆ '+range+'m 이내 다이아 신호 없음')+metals.filter(t=>t!==ore).map(t=>'\n▣ '+line(t)).join('');
     }
     if(release(keys)){attached=null;return false;}
     if(attached&&!near(attached))attached=null;

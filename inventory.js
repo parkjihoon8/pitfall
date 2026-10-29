@@ -11,6 +11,12 @@
   for(const [id,name,recipe,station] of [['ladder','나무 사다리',{stick:4,stone:2},'bench'],['torch','설치형 횃불',{stick:2,stone:1},'bench'],['headlamp','광산용 헤드램프',{stone:4,quartz:2,emerald:1},'bench'],['scanner','광맥 탐지기',{quartz:3,emerald:2,ruby:1},'anvil']]){ITEMS[id]={name,max:id==='ladder'||id==='torch'?20:1};RECIPES[id]=recipe;STATIONS[id]=station;}
   ['pickaxe','quartz_pickaxe','emerald_pickaxe','ruby_pickaxe','diamond_pickaxe'].forEach((id,tier)=>TOOLS[id].tier=tier);
   const ORE_REQUIREMENTS={quartz:'pickaxe',emerald:'quartz_pickaxe',ruby:'emerald_pickaxe',diamond:'ruby_pickaxe'};
+  for(const [id,name] of Object.entries({coal:'석탄',copper:'구리 광석',iron:'철 광석',gold:'금 광석',copper_ingot:'구리 주괴',iron_ingot:'철 주괴',gold_ingot:'금 주괴',copper_wire:'구리선',iron_plate:'철판',furnace:'용광로',conveyor:'컨베이어 벨트'}))ITEMS[id]={name,max:id==='furnace'?1:99};
+  for(const ore of ['coal','copper','iron','gold'])ORE_REQUIREMENTS[ore]='pickaxe';
+  Object.assign(RECIPES,{furnace:{stick:10,stone:30},copper_wire:{copper_ingot:1},iron_plate:{iron_ingot:2},conveyor:{iron_plate:2,copper_wire:3,stone:4}});for(const id of ['furnace','copper_wire','iron_plate','conveyor'])STATIONS[id]='bench';
+  ITEMS.gold_scanner={name:'금 회로 광맥 탐지기',max:1};RECIPES.gold_scanner={scanner:1,gold_ingot:2,copper_wire:3};STATIONS.gold_scanner='anvil';
+  const OUTPUT_COUNTS={copper_wire:3};
+  ITEMS.storage_chest={name:'보관 상자',max:20};ITEMS.vertical_conveyor={name:'수직 컨베이어',max:99};RECIPES.storage_chest={stick:8,stone:6};RECIPES.vertical_conveyor={iron_plate:3,copper_wire:4,stone:4};STATIONS.storage_chest=STATIONS.vertical_conveyor='bench';
   for(const [gem,tier,radius,cooldown] of [['emerald',2,.65,480],['ruby',3,.9,350],['diamond',4,1.2,280]]){const id=gem+'_drill';ITEMS[id]={name:({emerald:'에메랄드',ruby:'루비',diamond:'다이아몬드'})[gem]+' 드릴',max:1};TOOLS[id]={tier,radius,cooldown,damage:tier,drill:true,color:TOOLS[gem+'_pickaxe'].color};STATIONS[id]='anvil';RECIPES[id]=gem==='emerald'?{stone:8,quartz:2,emerald:3}:{[gem==='ruby'?'emerald_drill':'ruby_drill']:1,[gem]:3};}
   function canMine(tool,gem){const required=TOOLS[ORE_REQUIREMENTS[gem]];return !!required&&Number.isInteger(tool?.tier)&&tool.tier>=required.tier;}
   for(const [gem,name] of [['quartz','수정'],['emerald','에메랄드'],['ruby','루비']])ITEMS[gem+'_pickaxe']={name:name+' 곡괭이',max:1};
@@ -35,6 +41,7 @@
     if(!station||STATIONS[output]!==station)return {ok:false,reason:STATIONS[output]==='anvil'?'모루에서만 강화할 수 있습니다.':'기지 제작대에서만 만들 수 있습니다.'};
     if(station==='anvil'&&!s.anvilBuilt)return {ok:false,reason:'제작대에서 모루를 먼저 만드세요.'};
     if(output==='anvil'&&s.anvilBuilt)return {ok:false,reason:'기지에 모루가 이미 설치되어 있습니다.'};
+    if(output==='furnace'&&s.furnaceBuilt)return {ok:false,reason:'기지에 용광로가 이미 설치되어 있습니다.'};
     const recipe=RECIPES[output];if(!recipe)return {ok:false,reason:'없는 레시피입니다.'};
     if(Object.keys(recipe).some(id=>count(s,id)<recipe[id]))return {ok:false,reason:Object.entries(recipe).map(([id,n])=>ITEMS[id].name+' '+n+'개').join(' + ')+'가 필요합니다.'};
     const draft=copy(s);
@@ -44,8 +51,9 @@
     }
     let overflow=null;
     if(output==='anvil')draft.anvilBuilt=true;
-    else {if(!put(draft.slots,output,1))overflow=output;else draft.selected=draft.slots.findIndex(v=>v?.id===output);}
-    draft.crafted++;Object.assign(s,draft);return {ok:true,overflow};
+    else if(output==='furnace')draft.furnaceBuilt=true;
+    else {const slots=copy(draft.slots);if(!put(slots,output,OUTPUT_COUNTS[output]||1))overflow=output;else{draft.slots=slots;draft.selected=draft.slots.findIndex(v=>v?.id===output);}}
+    draft.crafted++;Object.assign(s,draft);return {ok:true,overflow,count:OUTPUT_COUNTS[output]||1};
   }
   function drop(s,x,z){
     const slot=s.slots[s.selected];if(!slot)return null;
@@ -60,7 +68,7 @@
       const s=fresh();s.slots=v.slots;s.selected=Number.isInteger(v.selected)&&v.selected>=0&&v.selected<3?v.selected:0;
       s.collected=Array.isArray(v.collected)?v.collected.filter(k=>typeof k==='string'):[];
       s.drops=Array.isArray(v.drops)?v.drops.filter(d=>typeof d.key==='string'&&ITEMS[d.id]&&Number.isInteger(d.count)&&d.count>0&&d.count<=9999&&Number.isFinite(d.x)&&Number.isFinite(d.z)&&Math.abs(d.x)<90&&d.z>-288&&d.z<60):[];
-      s.crafted=Number.isInteger(v.crafted)&&v.crafted>=0?v.crafted:0;s.anvilBuilt=v.anvilBuilt===true;return s;
+      s.crafted=Number.isInteger(v.crafted)&&v.crafted>=0?v.crafted:0;s.anvilBuilt=v.anvilBuilt===true;s.furnaceBuilt=v.furnaceBuilt===true;return s;
     }catch{return fresh();}
   }
   root.PitfallInventory={ITEMS,RECIPE,RECIPES,STATIONS,TOOLS,ORE_REQUIREMENTS,canMine,fresh,count,pickup,craft,drop,select,restore,transfer};

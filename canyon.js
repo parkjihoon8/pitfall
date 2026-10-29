@@ -201,14 +201,14 @@
     if(excavation.legacyMigration){bag.drops.forEach((d,i)=>{if(!world.free(d.x,d.z,.2)){d.x=4+i%4*.6;d.z=22+Math.floor(i/4)%4*.6;}});try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
     const pickups=new Map();
     for(const data of new Map([...mine.resources,...bag.drops].map(d=>[d.key,d])).values())if(!bag.collected.includes(data.key))pickups.set(data.key,mine.spawn(data));
-    const lootPhysics=buildLooseItems({bag,pickups,density:excavation.dig.density,items:inv.ITEMS});
+    let industry=null;const lootPhysics=buildLooseItems({bag,pickups,density:(x,y,z)=>Math.max(excavation.dig.density(x,y,z),industry?.beltDensity(x,y,z)??-Infinity),items:inv.ITEMS});
     function mergeStones(){lootPhysics.merge();}
     const stamina=world.staminaState();let sprinting=false;
     const staminaPanel=document.querySelector('.stamina'),staminaFill=document.getElementById('stamina-fill'),staminaValue=document.getElementById('stamina-value'),staminaBar=document.getElementById('stamina-bar'),staminaStatus=document.getElementById('stamina-status');
     const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');let lastMap=0,mapExpanded=false;mapCanvas.width=mapCanvas.height=640;
     const hotbar=document.getElementById('hotbar'),craftOverlay=document.getElementById('craft-overlay'),craftButton=document.getElementById('craft-button');
     const objective=document.getElementById('objective'),toastNode=document.getElementById('toast');let toastUntil=0,wheelAt=-1000,lastTarget=0,target=null,dragDistance=0;
-    const icon=id=>inv.TOOLS[id]?.drill?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 10H30V29H8ZM12 29H21V44H12" fill="'+inv.TOOLS[id].color+'"/><path d="M30 13L46 20L30 26Z" fill="#d1e6eb"/></svg>':inv.TOOLS[id]?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 41L30 12" stroke="#cda06b" stroke-width="6" stroke-linecap="round"/><path d="M9 12Q29 2 41 23L29 16L9 18Z" fill="'+inv.TOOLS[id].color+'"/></svg>':'<svg viewBox="0 0 48 48" aria-hidden="true">'+({
+    const icon=id=>PitfallIndustry.colors[id]?PitfallIndustry.icon(id):inv.TOOLS[id]?.drill?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 10H30V29H8ZM12 29H21V44H12" fill="'+inv.TOOLS[id].color+'"/><path d="M30 13L46 20L30 26Z" fill="#d1e6eb"/></svg>':inv.TOOLS[id]?'<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 41L30 12" stroke="#cda06b" stroke-width="6" stroke-linecap="round"/><path d="M9 12Q29 2 41 23L29 16L9 18Z" fill="'+inv.TOOLS[id].color+'"/></svg>':'<svg viewBox="0 0 48 48" aria-hidden="true">'+({
       anvil:'<path d="M4 12H43L35 23H28V32L37 38V42H12V38L21 32V23H14Z" fill="#a9bec2"/>',
       boots:'<path d="M8 6H23V29L39 33V42H6V32Z" fill="#80d9ca"/><path d="M6 38H39" stroke="#e8c382" stroke-width="5"/><path d="M13 12H22M13 19H22" stroke="#254d47" stroke-width="3"/>',
       quartz:'<path d="M24 3L39 17L34 36L24 45L10 29L12 12Z" fill="#a4d8ef"/>',
@@ -218,6 +218,7 @@
       ladder:'<path d="M12 3V45M36 3V45M12 10H36M12 20H36M12 30H36M12 40H36" stroke="#c99b63" stroke-width="5"/>',
       torch:'<path d="M23 24V46" stroke="#b18554" stroke-width="7"/><path d="M24 2Q45 27 24 31Q4 25 24 2" fill="#ffbb61"/>',
       headlamp:'<path d="M5 32Q4 8 24 8Q44 8 43 32Z" fill="#dbad67"/><circle cx="24" cy="23" r="9" fill="#d5f8ff"/>',
+      gold_scanner:'<rect x="8" y="12" width="32" height="32" rx="5" fill="#dfb748"/><circle cx="24" cy="28" r="11" fill="#183f37"/><path d="M24 28L31 20M16 12V3" stroke="#a5efb7" stroke-width="3"/>',
       scanner:'<rect x="8" y="12" width="32" height="32" rx="5" fill="#789e90"/><circle cx="24" cy="28" r="11" fill="#183f37"/><path d="M24 28L31 20M16 12V3" stroke="#a5efb7" stroke-width="3"/>',
       stick:'<path d="M13 40L34 7M22 25L12 16M27 18L38 17" fill="none" stroke="#cda06b" stroke-width="6" stroke-linecap="round"/>',
       stone:'<path d="M8 32L12 16L26 9L39 19L41 33L26 40Z" fill="#a6bdb6"/><path d="M12 16L27 26L39 19M27 26L26 40" fill="none" stroke="#738d85" stroke-width="2"/>',
@@ -242,7 +243,7 @@
     const recipeSelect=document.getElementById('recipe-select');recipeSelect.onchange=renderRecipe;
     const recipeGrid=document.createElement('div');recipeGrid.className='recipe-grid';recipeGrid.setAttribute('aria-label','제작 레시피');recipeSelect.after(recipeGrid);recipeSelect.hidden=true;document.querySelector('label[for="recipe-select"]').hidden=true;
     let recipeCategory='pickaxes';const recipeTabs=document.createElement('div');recipeTabs.className='recipe-tabs';recipeGrid.before(recipeTabs);
-    const category=id=>inv.TOOLS[id]&&!inv.TOOLS[id].drill?'pickaxes':inv.TOOLS[id]?.drill||['anvil','boots','ladder','torch','headlamp','scanner'].includes(id)?'tools':'structures';
+    const category=id=>inv.TOOLS[id]&&!inv.TOOLS[id].drill?'pickaxes':inv.TOOLS[id]?.drill||['anvil','boots','ladder','torch','headlamp','scanner','gold_scanner'].includes(id)?'tools':'structures';
     for(const [id,name] of [['pickaxes','곡괭이'],['tools','도구'],['structures','기타 / 구조물']]){const b=document.createElement('button');b.type='button';b.textContent=name;b.dataset.category=id;b.onclick=()=>{recipeCategory=id;const first=Object.keys(inv.RECIPES).find(k=>inv.STATIONS[k]===activeStation&&category(k)===id);if(first)recipeSelect.value=first;renderRecipe();};recipeTabs.append(b);}
     function renderRecipe(){
       const output=recipeSelect.value,recipe=inv.RECIPES[output];
@@ -256,7 +257,7 @@
       }
       const empty=!recipeGrid.children.length;document.querySelector('.recipe').hidden=empty;if(empty){recipeGrid.textContent='아직 등록된 레시피가 없습니다.';return;}
       document.getElementById('recipe-name').textContent=inv.ITEMS[output].name;document.getElementById('recipe-icon').innerHTML=icon(output);
-      document.getElementById('recipe-power').textContent=({ladder:'우클릭 설치 · 지하 벽 전용 · W/S 오르내리기',torch:'우클릭 설치 · 주변 조명',headlamp:'손에 들고 우클릭 · 머리 조명 켜기/끄기',scanner:'손에 들면 근처 광석과 폐광 신호 표시',boots:'우클릭 장착 · 공중 추가 점프',anvil:'기지 오른쪽에 자동 설치'})[output]||('굴착 반경 '+Math.round(inv.TOOLS[output].radius*100)+'cm · 타격 간격 '+(inv.TOOLS[output].cooldown/1000)+'초');
+      document.getElementById('recipe-power').textContent=({furnace:'기지에 자동 설치 · 석탄 1개로 광석 4개 제련',copper_wire:'구리 주괴 1개 → 구리선 3개',iron_plate:'철 주괴 2개 → 철판 1개',conveyor:'수평 2m · 우클릭 연결 설치 · 상자 자동 운반',vertical_conveyor:'수직 3m · 지하에서 위로 운반 · 끝에 우클릭 연결',storage_chest:'우클릭 설치 · 12칸 · 컨베이어 입출력 연결',ladder:'우클릭 설치 · 지하 벽 전용 · W/S 오르내리기',torch:'우클릭 설치 · 주변 조명',headlamp:'우클릭 착용 · 맨손 우클릭 해제',gold_scanner:'금 주괴 2개 + 구리선 3개로 강화 · 탐지 반경 20m',scanner:'손에 들면 근처 광석과 폐광 신호 표시',boots:'우클릭 장착 · 공중 추가 점프',anvil:'기지 오른쪽에 자동 설치'})[output]||(inv.TOOLS[output]?'굴착 반경 '+Math.round(inv.TOOLS[output].radius*100)+'cm · 타격 간격 '+(inv.TOOLS[output].cooldown/1000)+'초':'');
       craftButton.textContent=output==='anvil'?'모루 제작 · 설치':inv.ITEMS[output].name+(activeStation==='anvil'?' 강화':' 제작');
       document.getElementById('ingredients').innerHTML=Object.entries(recipe).map(([id,n])=>'<li><span>'+inv.ITEMS[id].name+'</span><b class="'+(inv.count(bag,id)>=n?'enough':'missing')+'">'+inv.count(bag,id)+' / '+n+'</b></li>').join('');
       const preview=inv.craft(JSON.parse(JSON.stringify(bag)),craftAllowed(),output);craftButton.disabled=!preview.ok;
@@ -285,6 +286,7 @@
       if(drillDown&&inv.TOOLS[heldId]?.drill){hit=null;for(let y=p.airY+.1;y>=p.airY-3;y-=.05){if(excavation.dig.density(p.x,y,p.z)>=0){hit={kind:'rock',point:new T.Vector3(p.x,y,p.z),normal:new T.Vector3(0,1,0)};break;}}}
       if(!hit)return;
       if(hit.kind==='bed'){clear();vitals.sleep();return;}
+      if(industry.open(hit))return;
       if(hit.kind==='flora'){exploration.harvest(hit.id);return;}
       if(hit.kind==='placed')return;
       if(hit.kind==='pack'||hit.kind==='storage'){equipment.open(hit.kind);return;}
@@ -319,15 +321,16 @@
     craftButton.onclick=()=>{
       const output=recipeSelect.value,result=inv.craft(bag,craftAllowed(),output);if(!result.ok){renderRecipe();return toast(result.reason);}
       if(bag.anvilBuilt)installAnvil();
-      if(result.overflow){const data={key:'crafted-'+Date.now().toString(36),id:result.overflow,count:1,x:p.x,z:p.z};bag.drops.push(data);pickups.set(data.key,mine.spawn(data));}
-      save();renderBag();document.getElementById('craft-feedback').textContent=output==='anvil'?'기지 오른쪽에 모루가 설치되었습니다. 모루를 클릭해 강화하세요.':inv.ITEMS[output].name+' 완성! 창을 닫으면 손에 장착됩니다.';toast(inv.ITEMS[output].name+' 제작 완료');
+      industry.install();
+      if(result.overflow){const data={key:'crafted-'+Date.now().toString(36),id:result.overflow,count:result.count||1,x:p.x,y:p.airY,z:p.z};bag.drops.push(data);pickups.set(data.key,mine.spawn(data));}
+      save();renderBag();document.getElementById('craft-feedback').textContent=output==='furnace'?'기지 안쪽에 용광로가 설치되었습니다. 클릭해서 석탄과 광석을 넣으세요.':output==='anvil'?'기지 오른쪽에 모루가 설치되었습니다. 모루를 클릭해 강화하세요.':inv.ITEMS[output].name+' × '+result.count+' 완성!';toast(inv.ITEMS[output].name+' 제작 완료');
       if(result.overflow)document.getElementById('craft-feedback').textContent=inv.ITEMS[output].name+' 완성! 발밑에 놓았습니다. 빈 칸을 만든 뒤 주우세요.';
     };
     craftOverlay.addEventListener('keydown',e=>{if(e.code==='Tab'){e.preventDefault();const controls=[document.getElementById('craft-close'),...recipeGrid.querySelectorAll('button'),...(craftButton.disabled?[]:[craftButton])],i=controls.indexOf(document.activeElement);controls[(i+(e.shiftKey?-1:1)+controls.length)%controls.length].focus();}});
     function dropSelected(){
       if(p.airY>0)return toast('착지한 뒤 내려놓으세요.');if(!bag.slots[bag.selected])return;
       const v=world.direction(p.yaw,1,0),x=p.x+v.x*1.25,z=p.z+v.z*1.25;
-      if(!world.free(x,z,.15))return toast('앞쪽에 내려놓을 공간이 없습니다.');
+      if(!world.free(x,z,.15,p.airY))return toast('앞쪽에 내려놓을 공간이 없습니다.');
       const data=inv.drop(bag,x,z);data.y=p.airY;pickups.set(data.key,mine.spawn(data));save();renderBag();toast(inv.ITEMS[data.id].name+' 내려놓음');
     }
     canvas.addEventListener('wheel',e=>{if(!playing||crafting||!e.deltaY)return;e.preventDefault();const now=performance.now();if(now-wheelAt<130)return;wheelAt=now;inv.select(bag,Math.sign(e.deltaY));renderBag();save();},{passive:false});
@@ -351,10 +354,11 @@
     const vitals=buildVitals({p,stamina,toast});
     const exploration=buildExploration({T,scene,camera,p,bag,world,excavation,save,renderBag,toast,giveLoot});
     const equipment=buildEquipment({T,scene,world,p,bag,stamina,model,save,renderBag,toast,icon,setPaused(value){playing=!value;clear();menu.hidden=true;if(value)document.exitPointerLock?.();else lock();}});
+    industry=buildIndustry({T,scene,p,bag,world,field:excavation.dig,pickups,equipmentState:equipment.state,save,renderBag,toast,icon,setPaused(value){playing=!value;clear();menu.hidden=true;if(value)document.exitPointerLock?.();else lock();}});
     const hint=document.getElementById('hint'),heading=document.getElementById('heading'),zone=document.getElementById('zone'),coords=document.getElementById('coords');let showingCoords=false;
     const pitchLimit=89*Math.PI/180;let lookX=0,lookY=0,ignoreMouseUntil=0;
     function clear(){keys.clear();dragging=false;lookX=0;lookY=0;}
-    function pause(){playing=false;clear();if(crafting||equipment.opened)return;menu.hidden=false;document.getElementById('enter').textContent='탐험 계속하기';hint.textContent='';}
+    function pause(){playing=false;clear();if(crafting||equipment.opened||industry?.opened)return;menu.hidden=false;document.getElementById('enter').textContent='탐험 계속하기';hint.textContent='';}
     function look(dx,dy){if(performance.now()<ignoreMouseUntil||!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>300||Math.abs(dy)>300)return;lookX=Math.max(-400,Math.min(400,lookX+dx));lookY=Math.max(-400,Math.min(400,lookY+dy));}
     document.getElementById('enter').addEventListener('click',()=>{
       document.getElementById('reset-confirm').hidden=true;
@@ -365,11 +369,11 @@
     document.getElementById('respawn').onclick=()=>{clear();vitals.respawn();p.grounded=true;p.landingSpeed=0;save();playing=true;menu.hidden=true;lock();};
     document.getElementById('reset-game').onclick=()=>{resetConfirm.hidden=false;document.getElementById('reset-cancel').focus();};
     document.getElementById('reset-cancel').onclick=()=>{resetConfirm.hidden=true;document.getElementById('reset-game').focus();};
-    document.getElementById('reset-yes').onclick=()=>{try{for(const k of ['pitfall-exploration-v1','pitfall-health-v1','pitfall-equipment-v1','pitfall-crafting-v1','pitfall-terrain-v2','pitfall-dig-v1','pitfall-dig-v1-backup'])localStorage.removeItem(k);location.reload();}catch{toast('저장소를 초기화하지 못했습니다. 브라우저 설정을 확인하세요.');}};
+    document.getElementById('reset-yes').onclick=()=>{try{for(const k of ['pitfall-industry-v1','pitfall-exploration-v1','pitfall-health-v1','pitfall-equipment-v1','pitfall-crafting-v1','pitfall-terrain-v2','pitfall-dig-v1','pitfall-dig-v1-backup'])localStorage.removeItem(k);location.reload();}catch{toast('저장소를 초기화하지 못했습니다. 브라우저 설정을 확인하세요.');}};
     document.addEventListener('pointerlockchange',()=>{lookX=lookY=0;ignoreMouseUntil=performance.now()+80;if(document.pointerLockElement!==canvas&&playing)pause();});
     document.addEventListener('pointerlockerror',()=>{message.textContent='마우스를 누른 채 드래그하거나 방향키로 둘러보세요.';});
     canvas.addEventListener('mousedown',e=>{if(playing&&e.button===0){dragging=true;dragDistance=0;if(document.pointerLockElement===canvas)interact(!!inv.TOOLS[heldId]?.drill);}});
-    canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('mousedown',e=>{if(playing&&!vitals.resting&&e.button===2){e.preventDefault();if(!exploration.use(findTarget()))equipment.rightClick();}});
+    canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('mousedown',e=>{if(playing&&!vitals.resting&&e.button===2){e.preventDefault();const hit=findTarget();if(!industry.use(hit)&&!exploration.use(hit))equipment.rightClick();}});
     addEventListener('mouseup',()=>{if(dragging&&dragDistance<4&&document.pointerLockElement!==canvas)interact();dragging=false;});
     addEventListener('mousemove',e=>{if(playing&&(document.pointerLockElement===canvas||dragging)){dragDistance+=Math.abs(e.movementX)+Math.abs(e.movementY);look(e.movementX,e.movementY);}});
     addEventListener('keydown',e=>{
@@ -380,6 +384,8 @@
       if(e.code==='Digit4'&&!e.repeat){e.preventDefault();equipment.dropPack();return;}
       if(e.code==='KeyE'&&!e.repeat){interact(false,true);return;}
       if(e.code==='KeyQ'&&!e.repeat){dropSelected();return;}
+      if(e.code==='KeyR'&&!e.repeat){industry.rotate();return;}
+      if(e.code==='KeyX'&&!e.repeat){industry.remove(findTarget());return;}
       if(/^Digit[123]$/.test(e.code)){bag.selected=Number(e.code.at(-1))-1;renderBag();save();return;}
       if(e.code==='Space'&&!e.repeat){e.preventDefault();if(!equipment.jump()&&p.airY===0)toast('점프에는 스태미나 9와 머리 위 여유 공간이 필요합니다.');}
       if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)){e.preventDefault();keys.add(e.code);}
@@ -392,6 +398,7 @@
     document.getElementById('close-credits').onclick=()=>document.getElementById('credits').classList.remove('open');
     function tick(now){
       const dt=Math.min(.05,(now-last)/1000);last=now;
+      if((playing||industry.opened)&&!vitals.resting)industry.update(dt);
       if(playing&&!vitals.resting){
         if(lootPhysics.update(dt)){try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
         const blend=1-Math.exp(-35*dt),dx=lookX*blend,dy=lookY*blend;lookX-=dx;lookY-=dy;p.yaw-=dx*.0022;p.pitch=Math.max(-pitchLimit,Math.min(pitchLimit,p.pitch-dy*.0022));
@@ -420,6 +427,7 @@
       camera.position.set(p.x,1.72+world.cameraFeet(p,dt)+Math.sin(bob)*.018+Math.sin(now*.09)*excavation.shake,p.z);camera.rotation.set(p.pitch,p.yaw,0,'YXZ');
       const inBase=p.x>bx-w/2&&p.x<bx+w/2&&p.z>bz-d/2&&p.z<front;
       zone.textContent=inBase?'간이 기지 · 내부':excavation.zone(p)||(p.z<-25?'붉은 협곡 · 탐사 구역':'붉은 협곡 · 기지 주변');
+      if(p.airY<-.5)zone.textContent=PitfallIndustry.layer(p.airY).name+' · 깊이 '+(-p.airY).toFixed(1)+'m'+(p.airY<-21?' · 다이아 심부':'');
       heading.textContent=String(Math.round(((-p.yaw*180/Math.PI)%360+360)%360)).padStart(3,'0')+'°';
       if(showingCoords){coords.textContent='X '+p.x.toFixed(2)+'  Y '+(p.airY||0).toFixed(2)+'  Z '+p.z.toFixed(2);coords.hidden=false;}
       if(now-lastTarget>100){target=playing?findTarget():null;lastTarget=now;}
@@ -429,6 +437,8 @@
       if(playing&&target?.kind==='bed')hint.textContent='좌클릭 / E · 수면 · 체력과 스태미나 모두 회복';
       if(playing&&target?.kind==='flora')hint.textContent='좌클릭 / E · 가시 줄기 채집';
       if(playing&&target?.kind==='storage')hint.textContent='좌클릭 / E · 보관 상자 열기';
+      if(playing&&target?.kind==='factory')hint.textContent=target.thing==='belt'?'벨트/상자를 들고 우클릭 · 끝에 자동 연결':'좌클릭 / E · '+(target.thing==='furnace'?'용광로 열기':'상자 열기');
+      if(playing&&['conveyor','vertical_conveyor','storage_chest'].includes(heldId))hint.textContent='우클릭 설치 · 기존 벨트 끝/상자에 자동 연결 · R 회전 · X 회수';
       miningInfo.textContent=excavation.pending?'붕괴 임박 · 뒤로 물러나세요!':playing&&hp?'보석 균열 '+hp+' / 3':playing&&target?.kind==='rock'?'맞힌 부분이 조금씩 깎입니다 · 발밑과 옆도 넓혀 통로를 만드세요':'';
       objective.textContent=bag.crafted?(excavation.dig.state.discovered?'폐광 발견 · 벽에 박힌 보석을 캐세요':'협곡 양쪽 암벽을 탐사하세요 · 폐광의 위치는 알 수 없습니다'):inv.count(bag,'stick')>=3&&inv.count(bag,'stone')>=2?'기지 제작대로 돌아가 곡괭이 만들기':'바닥에서 재료 모으기 · 나뭇가지 '+inv.count(bag,'stick')+'/3 · 돌멩이 '+inv.count(bag,'stone')+'/2';
       if(now>toastUntil)toastNode.textContent='';
@@ -443,6 +453,7 @@
     window.pitfallDebug={snapshot:()=>({x:p.x,z:p.z,yaw:p.yaw,pitch:p.pitch,airY:p.airY,playing,crafting,inventory:JSON.parse(JSON.stringify(bag)),target:target?.kind,stamina:stamina.value,exhausted:stamina.exhausted,sprinting:playing&&sprinting,inside:world.free(p.x,p.z),inBase:p.x>bx-w/2&&p.x<bx+w/2&&p.z>bz-d/2&&p.z<front,models:Object.keys(modelCache).length,triangles:renderer.info.render.triangles,calls:renderer.info.render.calls}),details:()=>({mine:mine.entrance,resources:mine.resources,bench:workbench.position.toArray(),anvil:{position:anvil.position.toArray(),installed:anvilInstalled},bedSize:new T.Box3().setFromObject(bed).getSize(new T.Vector3()).toArray(),signs:signs.map(s=>({text:s.text,front:s.front.rotation.y,back:s.back.rotation.y}))}),world};
     window.pitfallDebug.mining=()=>({summary:excavation.summary(),pending:excavation.pending,target:target?{kind:target.kind,point:target.point?.toArray(),normal:target.normal?.toArray(),id:target.id,gem:target.gem}:null,terrain:excavation.diagnostics(),veins:{...excavation.dig.state.veins},swing});
     window.pitfallDebug.equipment=()=>JSON.parse(JSON.stringify(equipment.state));
+    window.pitfallDebug.industry=()=>JSON.parse(JSON.stringify(industry.state));
     renderBag();
     document.getElementById('enter').disabled=false;document.getElementById('enter').textContent='협곡 탐험 시작';
     requestAnimationFrame(tick);

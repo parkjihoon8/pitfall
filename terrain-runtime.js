@@ -4,7 +4,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   try{localStorage.setItem('pitfall-terrain-v2',field.serialize());}catch{}
   world.setUnderground(field.free);
   world.density=field.density;
-  const material=mat(0xbd8559,{side:T.DoubleSide,flatShading:false}),wood=mat(0x66503a),iron=mat(0x46524e),colors={quartz:0xa4d8ef,emerald:0x4fcb92,ruby:0xe5687c,diamond:0xb6efff};
+  const material=mat(0xbd8559,{side:T.DoubleSide,flatShading:false,vertexColors:true}),wood=mat(0x66503a),iron=mat(0x46524e),colors={quartz:0xa4d8ef,emerald:0x4fcb92,ruby:0xe5687c,diamond:0xb6efff,coal:0x353946,copper:0xc37c51,iron:0x899ca6,gold:0xdfb748};
   const chamber=field.chamber,veins=[],particles=[],chipGeo=new T.TetrahedronGeometry(.065);let shake=0,pending=null,stress=0,lastHit=0;
   const lantern=new T.PointLight(0xffd5a3,0,10,1);lantern.name='cave-fill-light';scene.add(lantern);
   const impactLight=new T.PointLight(0xccefff,0,5,2);scene.add(impactLight);
@@ -14,13 +14,16 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   for(let i=0;i<20;i++)for(let lane=0;lane<3;lane++){const id='diamond-supply-v1-'+i+'-'+lane;if(deposits.some(d=>d.id===id))continue;const z=world.Z_MAX-10-i*14+(lane-1)*2,b=world.bounds(z),x=b.left+(b.right-b.left)*(.22+lane*.28),y=-6.5-((i+lane)%4)*2;deposits.push({id,gem:'diamond',x,y,z});}
   // Early progression: shallow crystals along both walls and just below the canyon floor.
   for(let i=0;i<24;i++)for(let lane=0;lane<3;lane++){const id='quartz-supply-v1-'+i+'-'+lane;if(deposits.some(d=>d.id===id))continue;const z=24-i*12,b=world.bounds(z),x=lane===0?b.left-.65-(i%3)*.2:lane===1?b.right+.65+(i%3)*.2:(b.left+b.right)/2,y=lane===2?-1.5-(i%3)*.75:1.1+(i%3)*.35;deposits.push({id,gem:'quartz',x,y,z});}
+  PitfallIndustry.seedDeposits(deposits,world);
   try{localStorage.setItem('pitfall-terrain-v2',field.serialize());}catch{}
-  function deposit(data){if((field.state.veins[data.id]||0)>=3)return;const g=new T.Group();g.position.set(data.x,data.y,data.z);g.userData.interaction={kind:'vein',id:data.id,gem:data.gem};for(let i=0;i<3;i++){const crystal=new T.Mesh(new T.OctahedronGeometry(.16),mat(colors[data.gem],{emissive:colors[data.gem],emissiveIntensity:.3}));crystal.position.set((i-1)*.17,i*.07,0);g.add(crystal);}scene.add(g);veins.push({id:data.id,gem:data.gem,g});}
+  const spawnedDeposits=new Set();
+  function deposit(data){if(spawnedDeposits.has(data.id)||(field.state.veins[data.id]||0)>=3||field.density(data.x,data.y,data.z)>.28)return;spawnedDeposits.add(data.id);const g=new T.Group();g.position.set(data.x,data.y,data.z);g.userData.interaction={kind:'vein',id:data.id,gem:data.gem};for(let i=0;i<3;i++){const crystal=new T.Mesh(new T.OctahedronGeometry(.16),mat(colors[data.gem],{emissive:colors[data.gem],emissiveIntensity:.18}));crystal.position.set((i-1)*.17,i*.07,0);g.add(crystal);}scene.add(g);veins.push({id:data.id,gem:data.gem,g});}
   for(const d of deposits)if(d&&colors[d.gem]&&[d.x,d.y,d.z].every(Number.isFinite))deposit(d);
   function rebuild(cx,cz,step=.32){
     const k=cx+','+cz,old=chunks.get(k);if(old){old.geometry.dispose();old.removeFromParent();chunks.delete(k);}
     const data=PitfallTerrainMesh.build(field,cx,cz,step);if(!data.length)return;
     const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(data,3));geo.computeVertexNormals();geo.computeBoundingSphere();
+    const shades=[];for(let i=0;i<data.length;i+=3){const shade=PitfallIndustry.layer(data[i+1]).shade;shades.push(shade,shade,shade);}geo.setAttribute('color',new T.Float32BufferAttribute(shades,3));
     // Use mesh normals; avoid six additional density samples for every output vertex.
     const m=new T.Mesh(geo,material);m.receiveShadow=true;m.castShadow=true;m.userData.interaction={kind:'rock'};group.add(m);chunks.set(k,m);
   }
@@ -71,7 +74,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
     const bounds=world.bounds(hit.point.z),depth=Math.max(-hit.point.y,bounds.left-hit.point.x,hit.point.x-bounds.right,world.Z_MIN-hit.point.z,hit.point.z-world.Z_MAX,0);
     if(depth>=3){let seed=(Math.imul(n,2654435761)^Math.round(chamber.x*1000)^Math.round(chamber.z*1000))>>>0;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};const chance=.4*Math.min(.4,.05+(depth-3)*.02);
       if(random()<chance){const cut=result.cut,pos=new T.Vector3(cut.x,cut.y,cut.z).addScaledVector(normal,-(cut.r+.18)),id='deep-bonus-v1-'+n;
-        if(field.density(pos.x,pos.y,pos.z)>.02&&!deposits.some(d=>d.id===id)){const roll=random(),gem=pos.y< -6&&roll<.2?'diamond':roll<.45?'quartz':roll<.75?'emerald':'ruby',d={id,gem,x:pos.x,y:pos.y,z:pos.z};deposits.push(d);deposit(d);}
+        if(field.density(pos.x,pos.y,pos.z)>.02&&!deposits.some(d=>d.id===id)){const roll=random(),gem=pos.y< -21&&roll<.2?'diamond':pos.y<0&&roll<.6?PitfallIndustry.layer(pos.y).ore:roll<.75?'quartz':roll<.9?'emerald':'ruby',d={id,gem,x:pos.x,y:pos.y,z:pos.z};deposits.push(d);deposit(d);}
       }
     }
     let warning;const at=hit.point,b=world.bounds(at.z),buried=at.x<b.left-1.5||at.x>b.right+1.5||at.z<world.Z_MIN-1.5||at.z>world.Z_MAX+1.5;
@@ -83,6 +86,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   }
   let cleanClock=0,lastCleanCount=-1;const checked=new Map();
   function update(dt,p){
+    if(update.depositCount!==field.count){update.depositCount=field.count;for(const d of deposits)deposit(d);}
     for(const v of veins){if(!v.g.parent)continue;const q=v.g.position;if(Math.hypot(q.x-p.x,q.z-p.z)>30)continue;const supported=[[.32,0,0],[-.32,0,0],[0,.32,0],[0,-.32,0],[0,0,.32],[0,0,-.32]].some(([x,y,z])=>field.density(q.x+x,q.y+y,q.z+z)>.01);if(!supported){v.vy=(v.vy||0)-9*dt;const next=q.y+v.vy*dt;if(field.density(q.x,next-.18,q.z)<0){q.y=next;const d=deposits.find(d=>d.id===v.id);if(d)d.y=next;}else v.vy=0;}else v.vy=0;}
     impactLight.intensity=Math.max(0,impactLight.intensity-dt*50);
     cleanClock+=dt;
