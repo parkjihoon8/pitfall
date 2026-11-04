@@ -13,6 +13,7 @@
     renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.setSize(innerWidth,innerHeight);
     renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+    const quality=PitfallPerformance.create({renderer,devicePixelRatio});
     const canvas=renderer.domElement;canvas.id='world';canvas.tabIndex=0;canvas.setAttribute('aria-label','주황색 절벽과 간이 기지가 있는 1인칭 협곡');
     document.body.prepend(canvas);
     scene.add(new T.HemisphereLight(0xd9f1e6,0xb16e45,2.2));
@@ -408,9 +409,10 @@
     document.getElementById('close-credits').onclick=()=>document.getElementById('credits').classList.remove('open');
     function tick(now){
       const dt=Math.min(.05,(now-last)/1000);last=now;
+      quality.sample(dt*1000);
       online?.update(dt);
       if((playing||industry.opened)&&!vitals.resting)industry.update(dt);
-      discovery.refresh();
+      discovery.update(now);
       if(playing&&!vitals.resting){
         if(!online&&lootPhysics.update(dt)){try{localStorage.setItem('pitfall-crafting-v1',JSON.stringify(bag));}catch{}}
         const blend=1-Math.exp(-35*dt),dx=lookX*blend,dy=lookY*blend;lookX-=dx;lookY-=dy;p.yaw-=dx*.0022;p.pitch=Math.max(-pitchLimit,Math.min(pitchLimit,p.pitch-dy*.0022));
@@ -463,7 +465,7 @@
     addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();heldCamera.aspect=camera.aspect;heldCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
     canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();pause();message.textContent='그래픽 연결이 중단됐습니다. 페이지를 새로고침해 주세요.';});
     // Read-only diagnostics make renderer and movement tests reproducible.
-    window.pitfallDebug={snapshot:()=>({x:p.x,z:p.z,yaw:p.yaw,pitch:p.pitch,airY:p.airY,playing,crafting,inventory:JSON.parse(JSON.stringify(bag)),target:target?.kind,stamina:stamina.value,exhausted:stamina.exhausted,sprinting:playing&&sprinting,inside:world.free(p.x,p.z),inBase:p.x>bx-w/2&&p.x<bx+w/2&&p.z>bz-d/2&&p.z<front,models:Object.keys(modelCache).length,triangles:renderer.info.render.triangles,calls:renderer.info.render.calls}),details:()=>({mine:mine.entrance,resources:mine.resources,bench:workbench.position.toArray(),anvil:{position:anvil.position.toArray(),installed:anvilInstalled},bedSize:new T.Box3().setFromObject(bed).getSize(new T.Vector3()).toArray(),signs:signs.map(s=>({text:s.text,front:s.front.rotation.y,back:s.back.rotation.y}))}),world};
+    window.pitfallDebug={snapshot:()=>({x:p.x,z:p.z,yaw:p.yaw,pitch:p.pitch,airY:p.airY,playing,crafting,inventory:JSON.parse(JSON.stringify(bag)),target:target?.kind,stamina:stamina.value,exhausted:stamina.exhausted,sprinting:playing&&sprinting,inside:world.free(p.x,p.z),inBase:p.x>bx-w/2&&p.x<bx+w/2&&p.z>bz-d/2&&p.z<front,models:Object.keys(modelCache).length,triangles:renderer.info.render.triangles,calls:renderer.info.render.calls,quality:quality.status()}),details:()=>({mine:mine.entrance,resources:mine.resources,bench:workbench.position.toArray(),anvil:{position:anvil.position.toArray(),installed:anvilInstalled},bedSize:new T.Box3().setFromObject(bed).getSize(new T.Vector3()).toArray(),signs:signs.map(s=>({text:s.text,front:s.front.rotation.y,back:s.back.rotation.y}))}),world};
     window.pitfallDebug.mining=()=>({summary:excavation.summary(),pending:excavation.pending,target:target?{kind:target.kind,point:target.point?.toArray(),normal:target.normal?.toArray(),id:target.id,gem:target.gem}:null,terrain:excavation.diagnostics(),veins:{...excavation.dig.state.veins},swing});
     window.pitfallDebug.equipment=()=>JSON.parse(JSON.stringify(equipment.state));
     window.pitfallDebug.industry=()=>JSON.parse(JSON.stringify(industry.state));

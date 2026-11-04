@@ -6,13 +6,13 @@ window.buildPitfallDiscovery=function({T,scene,world,p,model,modelCache,box,cyli
   function makeSite(id,site,index){
     const {x,z}=site,group=new T.Group();group.name='secret-site-'+id;scene.add(group);
     const floor=new T.Mesh(new T.CircleGeometry(2.35,12),mat(index===2?0x4b403b:0x8b664d));floor.rotation.x=-Math.PI/2;floor.position.set(x,.028,z);floor.receiveShadow=true;group.add(floor);
-    for(const side of [-1,1])rock(index===1?'rock_tallC':'rock_tallA',x+side*2.15,0,z+.25,1.7,3.8+index*.4,2.2,index===2?deepRock:canyonRock);
-    rock('rock_largeE',x,2.7,z+1.25,5.1,1.5,1.8,index===2?deepRock:canyonRock);
-    if(index===0){asset('bedroll',x-1.05,.06,z-.7,.18,.2,group);asset('bottle-large',x+.9,.05,z-.75,.45,0,group);segment([x-1.7,.15,z+1.4],[x-1.35,2.4,z+1.4],.04,metal);}
-    if(index===1){for(let i=-2;i<=2;i++){const a=[x+i*.55,.08,z+.9],b=[x+i*.55,1.45-Math.abs(i)*.12,z-.2];segment(a,b,.06,bone);segment(b,[x+i*.55,.08,z-1.1],.05,bone);}asset('bottle-large',x-1.2,.05,z-.65,.4,0,group);}
+    for(const side of [-1,1])group.add(rock(index===1?'rock_tallC':'rock_tallA',x+side*2.15,0,z+.25,1.7,3.8+index*.4,2.2,index===2?deepRock:canyonRock));
+    group.add(rock('rock_largeE',x,2.7,z+1.25,5.1,1.5,1.8,index===2?deepRock:canyonRock));
+    if(index===0){asset('bedroll',x-1.05,.06,z-.7,.18,.2,group);asset('bottle-large',x+.9,.05,z-.75,.45,0,group);group.add(segment([x-1.7,.15,z+1.4],[x-1.35,2.4,z+1.4],.04,metal));}
+    if(index===1){for(let i=-2;i<=2;i++){const a=[x+i*.55,.08,z+.9],b=[x+i*.55,1.45-Math.abs(i)*.12,z-.2];group.add(segment(a,b,.06,bone));group.add(segment(b,[x+i*.55,.08,z-1.1],.05,bone));}asset('bottle-large',x-1.2,.05,z-.65,.4,0,group);}
     if(index===2){const colors=[0x8ad8e8,0xb98ce1,0x72d6c0];for(let i=0;i<9;i++){const crystal=new T.Mesh(new T.OctahedronGeometry(.18+(i%3)*.08),mat(colors[i%3],{emissive:colors[i%3],emissiveIntensity:.35}));crystal.position.set(x-1.5+(i%5)*.7,.22+(i%2)*.22,z+.65-Math.floor(i/5)*1.35);crystal.scale.y=1.8;group.add(crystal);}}
-    const chest=model('chest',x,.05,z-.45,1.05,Math.PI);chest.name='secret-cache-'+id;chest.material=chest.material.clone();chest.userData.interaction={kind:'secret',id,name:site.name};
-    const light=new T.PointLight(index===2?0x9de9ff:0xffcf85,8,6,2);light.position.set(x,1.2,z-.35);scene.add(light);siteViews.set(id,{group,chest,light});
+    const chest=model('chest',x,.05,z-.45,1.05,Math.PI);group.add(chest);chest.name='secret-cache-'+id;chest.material=chest.material.clone();chest.userData.interaction={kind:'secret',id,name:site.name};
+    const light=new T.PointLight(index===2?0x9de9ff:0xffcf85,8,6,2);light.position.set(x,1.2,z-.35);group.add(light);siteViews.set(id,{group,chest,light});
   }
   Object.entries(R.SITES).forEach(([id,site],i)=>makeSite(id,site,i));
   const roomSpecs={map:{name:'지도실',x:-12.75,z:8,color:0x6e9d94},storage:{name:'창고실',x:-7.4,z:.9,color:0xc58b54},smelter:{name:'제련실',x:-1.65,z:4.3,color:0xbb6544},power:{name:'발전실',x:-1.65,z:8.15,color:0x5f908b}};
@@ -25,12 +25,14 @@ window.buildPitfallDiscovery=function({T,scene,world,p,model,modelCache,box,cyli
     if(id==='power'){for(const x of [-.65,.65]){const cell=cylinder(x,.8,-.25,.34,1.45,dark,g);const glow=cylinder(x,.8,-.25,.23,1.2,mat(0x7fe0d0,{emissive:0x55ccb8,emissiveIntensity:1.2}),g);cell.add(glow);}const l=new T.PointLight(0x9ffff0,12,8,2);l.position.set(0,2,0);g.add(l);}
     roomViews.set(id,g);toast(s.name+' 확장 완료');
   }
-  let roomIds=[];
-  function refresh(){const next=R.rooms(getProgress());for(const id of next)if(!roomViews.has(id))makeRoom(id);roomIds=next;updateCaches();}
+  let roomIds=[],roomStamp='',cacheStamp='',lastUpdate=-Infinity;
+  function cull(){for(const [id,v] of siteViews)v.group.visible=Math.hypot(p.x-R.SITES[id].x,p.z-R.SITES[id].z)<42;for(const [id,g] of roomViews){const s=roomSpecs[id];g.visible=Math.hypot(p.x-s.x,p.z-s.z)<45;}}
+  function refresh(){const next=R.rooms(getProgress()),nextRoomStamp=next.join('|'),nextCacheStamp=(exploration.state.openedSecrets||[]).join('|');if(nextRoomStamp!==roomStamp){for(const id of next)if(!roomViews.has(id))makeRoom(id);roomIds=next;roomStamp=nextRoomStamp;}if(nextCacheStamp!==cacheStamp){cacheStamp=nextCacheStamp;updateCaches();}cull();}
+  function update(now){if(now-lastUpdate<250)return;lastUpdate=now;refresh();}
   function updateCaches(){const opened=new Set(exploration.state.openedSecrets||[]);for(const [id,v] of siteViews){const done=opened.has(id);v.chest.scale.y=done ? .65 : 1;v.chest.material.color.set(done?0x6f675d:0xffffff);v.light.intensity=done?1.5:8;v.chest.userData.interaction.opened=done;}}
   function open(hit){const site=R.SITES[hit.id];if(!site)return false;if((exploration.state.openedSecrets||[]).includes(hit.id)){toast('이미 비어 있는 탐사 상자입니다.');return true;}if(online){online.action({type:'secret',id:hit.id});return true;}let loot;try{loot=R.claim(exploration.state,hit.id);}catch(error){toast(error.message);return true;}for(const reward of loot)for(let n=0;n<reward.count;n++)giveLoot(reward.id);exploration.persist();updateCaches();refresh();toast(site.name+' 발견 · 희귀 보급품을 회수했습니다.');return true;}
   function drawMap(ctx,X,Z,mapExpanded){const opened=new Set(exploration.state.openedSecrets||[]),reveal=roomIds.includes('map'),visible=Object.entries(R.SITES).filter(([id])=>reveal||opened.has(id));for(const [id,s] of visible){ctx.save();ctx.translate(X(s.x),Z(s.z));if(mapExpanded)ctx.scale(.7,.7);ctx.fillStyle=opened.has(id)?'#6b6256':'#ffd36f';ctx.strokeStyle='#284943';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(7,0);ctx.lineTo(0,7);ctx.lineTo(-7,0);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}return visible.length;}
   function zone(){let best=null;for(const [id,s] of Object.entries(R.SITES)){const d=Math.hypot(p.x-s.x,p.z-s.z);if(d<7&&(!best||d<best.d))best={d,name:s.name,id};}return best?.name||'';}
   refresh();
-  return {open,refresh,drawMap,zone,diagnostics:()=>({sites:Object.entries(R.SITES).map(([id,s])=>({id,name:s.name,x:s.x,z:s.z})),chests:siteViews.size,opened:[...(exploration.state.openedSecrets||[])],rooms:[...roomIds]})};
+  return {open,refresh,update,drawMap,zone,diagnostics:()=>({sites:Object.entries(R.SITES).map(([id,s])=>({id,name:s.name,x:s.x,z:s.z})),chests:siteViews.size,visibleSites:[...siteViews.values()].filter(v=>v.group.visible).length,opened:[...(exploration.state.openedSecrets||[])],rooms:[...roomIds]})};
 };
