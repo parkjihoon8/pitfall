@@ -33,7 +33,8 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
       const mineDistance=distance({x:c.x,y:1.5,z:c.z}),mine=mineDistance<=50,relative=(bearing(c)+(p.yaw||0)*180/Math.PI+720)%360,arrow=['↑','↗','→','↘','↓','↙','←','↖'][Math.round(relative/45)%8];
       const line=t=>PitfallInventory.ITEMS[t.gem].name+' · '+distance(t).toFixed(1)+'m · 방위 '+Math.round(bearing(t))+'° · 깊이 '+Math.max(0,-t.y).toFixed(1)+'m';
       const metals=['coal','copper','iron','gold'].map(g=>targets.find(t=>t.gem===g)).filter(Boolean);
-      signal.style.fontSize=mine?'20px':'16px';signal.style.whiteSpace='pre-line';signal.textContent=(mine?'⚠ 폐광 '+arrow+' · '+mineDistance.toFixed(1)+'m · 방위 '+Math.round(bearing(c))+'°\n':'')+(ore?'광맥 신호 · '+line(ore):range+'m 이내 일반 광맥 신호 없음')+'\n'+(diamond?'◆ 다이아 전용 신호 · '+line(diamond):'◆ '+range+'m 이내 다이아 신호 없음')+metals.filter(t=>t!==ore).map(t=>'\n▣ '+line(t)).join('');
+      const secret=window.PitfallDiscoveryRules?.nearbySecret?.({x:p.x,y:p.airY,z:p.z},state.openedSecrets||[],10)||null;
+      signal.style.fontSize=mine||secret?'20px':'16px';signal.style.whiteSpace='pre-line';signal.textContent=(secret?'⚠ 암벽 뒤 빈 공간 감지 · '+secret.distance.toFixed(1)+'m\n':'')+(mine?'⚠ 폐광 '+arrow+' · '+mineDistance.toFixed(1)+'m · 방위 '+Math.round(bearing(c))+'°\n':'')+(ore?'광맥 신호 · '+line(ore):range+'m 이내 일반 광맥 신호 없음')+'\n'+(diamond?'◆ 다이아 전용 신호 · '+line(diamond):'◆ '+range+'m 이내 다이아 신호 없음')+metals.filter(t=>t!==ore).map(t=>'\n▣ '+line(t)).join('');
     }
     if(release(keys)){attached=null;return false;}
     if(attached&&!near(attached))attached=null;

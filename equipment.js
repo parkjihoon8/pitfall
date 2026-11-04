@@ -2,7 +2,7 @@ window.buildEquipment=function({T,scene,world,p,bag,stamina,model,save,renderBag
   const localStorage=window.PitfallStorage||window.localStorage,online=window.PitfallSession;
   const I=PitfallInventory,key='pitfall-equipment-v1';let raw={};try{raw=JSON.parse(localStorage.getItem(key))||{};}catch{}
   function slots(value,n){return Array.from({length:n},(_,i)=>{const v=value?.[i];return v&&I.ITEMS[v.id]&&Number.isInteger(v.count)&&v.count>0&&v.count<=I.ITEMS[v.id].max?{id:v.id,count:v.count}:null;});}
-  const state={boots:raw.boots===true,chest:slots(raw.chest,12),pack:slots(raw.pack,6),worn:raw.worn!==false,x:Number.isFinite(raw.x)?raw.x:-7,y:Number.isFinite(raw.y)?raw.y:0,z:Number.isFinite(raw.z)?raw.z:10};
+  const state={boots:raw.boots===true,chest:slots(raw.chest,Math.min(24,Math.max(12,raw.chest?.length||0))),pack:slots(raw.pack,6),worn:raw.worn!==false,x:Number.isFinite(raw.x)?raw.x:-7,y:Number.isFinite(raw.y)?raw.y:0,z:Number.isFinite(raw.z)?raw.z:10};
   let usedJump=false,opened=null;
   const pack=new T.Group();scene.add(pack);pack.userData.interaction={kind:'pack'};
   const cloth=new T.MeshStandardMaterial({color:0xb87939,roughness:1}),strap=new T.MeshStandardMaterial({color:0x284740});
@@ -24,5 +24,6 @@ window.buildEquipment=function({T,scene,world,p,bag,stamina,model,save,renderBag
     if(!position)return toast('앞에 배낭을 놓을 공간이 필요합니다.');state.worn=false;Object.assign(state,position);persist();toast('배낭을 클릭해 물건을 넣거나 다시 착용하세요.');}
   function rightClick(){if(online){online.action({type:'equip'});return;}const slot=bag.slots[bag.selected];if(slot?.id==='boots'&&!state.boots){state.boots=true;bag.slots[bag.selected]=null;toast('중력부츠 장착 · 공중에서 SPACE로 한 번 더 점프');}else if(!slot&&state.boots){bag.slots[bag.selected]={id:'boots',count:1};state.boots=false;toast('중력부츠 해제');}else return;persist();renderBag();}
   function jump(){if(p.grounded||(!world.density&&p.airY===0)){usedJump=false;return world.jump(p,stamina);}if(!state.boots||usedJump||stamina.value<4.5||stamina.exhausted||!world.free(p.x,p.z,world.RADIUS,p.airY+1.2))return false;usedJump=true;p.vy=6.6;p.jumping=true;stamina.value-=4.5;stamina.delay=.5;return true;}
-  sync();return {apply(next){Object.assign(state,next);sync();if(opened)draw();},open,dropPack,rightClick,jump,get opened(){return !!opened;},state};
+  function setChestCapacity(size){size=Math.max(12,Math.min(24,size));if(state.chest.length>=size)return;while(state.chest.length<size)state.chest.push(null);persist();if(opened==='chest')draw();toast('창고실 기능 활성화 · 기지 상자 '+size+'칸');}
+  sync();return {apply(next){Object.assign(state,next);sync();if(opened)draw();},open,dropPack,rightClick,jump,setChestCapacity,get opened(){return !!opened;},state};
 };

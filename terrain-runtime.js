@@ -36,6 +36,7 @@ window.buildExcavation=function({T,world,scene,mat,box,cylinder,segment,model}){
   }
   for(const z of [world.Z_MIN,world.Z_MAX]){const b=world.bounds(z);for(let cx=Math.floor(b.left/4)-1;cx<=Math.floor(b.right/4)+1;cx++)for(let cz=Math.floor(z/4)-1;cz<=Math.floor(z/4);cz++)mark(cx,cz);}
   for(let cx=Math.floor((chamber.x-6)/4);cx<=Math.floor((chamber.x+6)/4);cx++)for(let cz=Math.floor((chamber.z-6)/4);cz<=Math.floor((chamber.z+6)/4);cz++)mark(cx,cz);
+  for(const site of Object.values(window.PitfallDiscoveryRules?.SITES||{}))for(let cx=Math.floor((site.x-site.radius-1)/4);cx<=Math.floor((site.x+site.radius+1)/4);cx++)for(let cz=Math.floor((site.z-site.radius-1)/4);cz<=Math.floor((site.z+site.radius+1)/4);cz++)mark(cx,cz);
   for(const c of field.cuts)for(let cx=Math.floor((c.x-c.r-.1)/4);cx<=Math.floor((c.x+c.r+.1)/4);cx++)for(let cz=Math.floor((c.z-c.r-.1)/4);cz<=Math.floor((c.z+c.r+.1)/4);cz++)mark(cx,cz);
   const refined=new Set();for(const c of field.cuts)for(let cx=Math.floor((c.x-c.r-.1)/4);cx<=Math.floor((c.x+c.r+.1)/4);cx++)for(let cz=Math.floor((c.z-c.r-.1)/4);cz<=Math.floor((c.z+c.r+.1)/4);cz++)refined.add(cx+','+cz);
   for(const k of initial)rebuild(...k.split(',').map(Number),refined.has(k)?.25:.5);

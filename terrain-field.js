@@ -12,6 +12,7 @@
     // Seeded once: revisiting/reloading never moves the buried chamber.
     const side=random()<.5?-1:1,z=-20-random()*205,b=world.bounds(z);
     const chamber={x:(side<0?b.left:b.right)+side*(12+random()*9),z,side,radius:5.5,height:4};
+    const secretSites=Object.values(root.PitfallDiscoveryRules?.SITES||{});
     const cuts=(Array.isArray(saved.cuts)?saved.cuts:[]).filter(c=>c&&[c.x,c.y,c.z,c.r].every(Number.isFinite)&&Math.abs(c.x)<90&&c.z>world.Z_MIN-24&&c.z<world.Z_MAX+24&&c.r>0&&c.r<=1.2&&c.y>=-24&&c.y<=3.8).map(c=>({...c}));
     const state={floorDrillMigration:true,cylinderFloorReset:true,discovered:saved.discovered===true,veins:saved.veins&&typeof saved.veins==='object'?saved.veins:{},collapses:Number.isInteger(saved.collapses)?saved.collapses:0,totalCuts:Number.isInteger(saved.totalCuts)?saved.totalCuts:cuts.length};
     const bins=new Map(),chunkSize=4;
@@ -25,6 +26,7 @@
       let value=Math.max(rock,-y);
       const room=Math.max(Math.hypot(x-chamber.x,z-chamber.z)-chamber.radius,Math.abs(y-2)-chamber.height/2);
       value=Math.min(value,room);
+      for(const site of secretSites){const hiddenRoom=Math.max(Math.hypot(x-site.x,z-site.z)-site.radius,Math.abs(y-(site.y+site.height/2))-site.height/2);value=Math.min(value,hiddenRoom);}
       for(const c of bins.get(key(x,y,z))||[]){const sphere=Math.hypot(x-c.x,y-c.y,z-c.z)-c.r;const cylinder=Math.max(Math.hypot(x-c.x,z-c.z)-c.r,Math.abs(y-c.y)-c.r);const floor=Number.isFinite(c.floorY)?Math.max(-24,Math.min(0,c.floorY)):0;value=Math.min(value,c.drill?cylinder:Math.max(sphere,floor-y));}
       // Uncuttable floor/roof prevent floating steps and upward escape.
       if(y< -24)value=Math.max(value,-24-y);

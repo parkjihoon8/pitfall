@@ -290,6 +290,7 @@
       if(drillDown&&inv.TOOLS[heldId]?.drill){hit=null;for(let y=p.airY+.1;y>=p.airY-3;y-=.05){if(excavation.dig.density(p.x,y,p.z)>=0){hit={kind:'rock',point:new T.Vector3(p.x,y,p.z),normal:new T.Vector3(0,1,0)};break;}}}
       if(!hit)return;
       if(hit.kind==='secret'){discovery.open(hit);return;}
+      if(hit.kind==='base-upgrade'){discovery.describe(hit);return;}
       if(hit.kind==='bed'){clear();vitals.sleep();return;}
       if(industry.open(hit))return;
       if(hit.kind==='flora'){exploration.harvest(hit.id);return;}
@@ -365,11 +366,11 @@
     const exploration=buildExploration({T,scene,camera,p,bag,world,excavation,save,renderBag,toast,giveLoot});
     const equipment=buildEquipment({T,scene,world,p,bag,stamina,model,save,renderBag,toast,icon,setPaused(value){playing=!value;clear();menu.hidden=true;if(value)document.exitPointerLock?.();else lock();}});
     industry=buildIndustry({T,scene,p,bag,world,field:excavation.dig,pickups,equipmentState:equipment.state,save,renderBag,toast,icon,setPaused(value){playing=!value;clear();menu.hidden=true;if(value)document.exitPointerLock?.();else lock();}});
-    discovery=buildPitfallDiscovery({T,scene,world,p,model,modelCache,box,cylinder,segment,rock,mat,exploration,giveLoot,toast,online,getProgress:()=>({openedSecrets:exploration.state.openedSecrets||[],furnaceBuilt:bag.furnaceBuilt===true,belts:industry.state.belts.length})});
+    discovery=buildPitfallDiscovery({T,scene,world,p,bag,model,modelCache,box,cylinder,segment,rock,mat,exploration,renderBag,icon,toast,online,getProgress:()=>({openedSecrets:exploration.state.openedSecrets||[],furnaceBuilt:bag.furnaceBuilt===true,belts:industry.state.belts.length}),onRooms:(rooms,effects)=>equipment.setChestCapacity(effects.chestSlots),setPaused(value){playing=!value;clear();menu.hidden=true;if(value)document.exitPointerLock?.();else lock();}});
     const hint=document.getElementById('hint'),heading=document.getElementById('heading'),zone=document.getElementById('zone'),coords=document.getElementById('coords');let showingCoords=false;
     const pitchLimit=89*Math.PI/180;let lookX=0,lookY=0,ignoreMouseUntil=0;
     function clear(){keys.clear();dragging=false;lookX=0;lookY=0;}
-    function pause(){playing=false;clear();if(crafting||equipment.opened||industry?.opened)return;menu.hidden=false;document.getElementById('enter').textContent='탐험 계속하기';hint.textContent='';}
+    function pause(){playing=false;clear();if(crafting||equipment.opened||industry?.opened||discovery?.opened)return;menu.hidden=false;document.getElementById('enter').textContent='탐험 계속하기';hint.textContent='';}
     function look(dx,dy){if(performance.now()<ignoreMouseUntil||!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>300||Math.abs(dy)>300)return;lookX=Math.max(-400,Math.min(400,lookX+dx));lookY=Math.max(-400,Math.min(400,lookY+dy));}
     document.getElementById('enter').addEventListener('click',()=>{
       document.getElementById('reset-confirm').hidden=true;
@@ -450,7 +451,8 @@
       if(playing&&target?.kind==='pack')hint.textContent='좌클릭 / E · 배낭 열기 · 보관 / 다시 착용';
       if(playing&&target?.kind==='bed')hint.textContent='좌클릭 / E · 수면 · 체력과 스태미나 모두 회복';
       if(playing&&target?.kind==='flora')hint.textContent='좌클릭 / E · 가시 줄기 채집';
-      if(playing&&target?.kind==='secret')hint.textContent=target.opened?'빈 탐사 상자':'좌클릭 / E · 희귀 보급품 상자 열기';
+      if(playing&&target?.kind==='secret')hint.textContent='좌클릭 / E · 희귀 보급품 상자 열기';
+      if(playing&&target?.kind==='base-upgrade')hint.textContent='좌클릭 / E · '+target.name+' 기능 확인';
       if(playing&&target?.kind==='storage')hint.textContent='좌클릭 / E · 보관 상자 열기';
       if(playing&&target?.kind==='factory')hint.textContent=target.thing==='belt'?'벨트/상자를 들고 우클릭 · 끝에 자동 연결':'좌클릭 / E · '+(target.thing==='furnace'?'용광로 열기':'상자 열기');
       if(playing&&['conveyor','vertical_conveyor','storage_chest'].includes(heldId))hint.textContent='우클릭 설치 · 기존 벨트 끝/상자에 자동 연결 · R 회전 · X 회수';
