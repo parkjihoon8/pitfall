@@ -454,8 +454,8 @@
       if(playing&&target?.kind==='secret')hint.textContent='좌클릭 / E · 희귀 보급품 상자 열기';
       if(playing&&target?.kind==='base-upgrade')hint.textContent='좌클릭 / E · '+target.name+' 기능 확인';
       if(playing&&target?.kind==='storage')hint.textContent='좌클릭 / E · 보관 상자 열기';
-      if(playing&&target?.kind==='factory')hint.textContent=target.thing==='belt'?'벨트/상자를 들고 우클릭 · 끝에 자동 연결':'좌클릭 / E · '+(target.thing==='furnace'?'용광로 열기':'상자 열기');
-      if(playing&&['conveyor','vertical_conveyor','storage_chest'].includes(heldId))hint.textContent='우클릭 설치 · 기존 벨트 끝/상자에 자동 연결 · R 회전 · X 회수';
+      if(playing&&target?.kind==='factory')hint.textContent=target.thing==='belt'?'벨트/상자를 들고 2m 안에 우클릭 · 자동 연결':'좌클릭 / E · '+(target.thing==='furnace'?'용광로 열기':'상자 열기');
+      if(playing&&['conveyor','vertical_conveyor','storage_chest'].includes(heldId))hint.textContent='우클릭 설치 · 연결점 2m 안에서 자동 정렬 · R 회전 · X 회수';
       miningInfo.textContent=excavation.pending?'붕괴 임박 · 뒤로 물러나세요!':playing&&hp?'보석 균열 '+hp+' / 3':playing&&target?.kind==='rock'?'맞힌 부분이 조금씩 깎입니다 · 발밑과 옆도 넓혀 통로를 만드세요':'';
       objective.textContent=bag.crafted?(excavation.dig.state.discovered?'폐광 발견 · 벽에 박힌 보석을 캐세요':'협곡 양쪽 암벽을 탐사하세요 · 폐광의 위치는 알 수 없습니다'):inv.count(bag,'stick')>=3&&inv.count(bag,'stone')>=2?'기지 제작대로 돌아가 곡괭이 만들기':'바닥에서 재료 모으기 · 나뭇가지 '+inv.count(bag,'stick')+'/3 · 돌멩이 '+inv.count(bag,'stone')+'/2';
       if(now>toastUntil)toastNode.textContent='';

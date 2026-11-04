@@ -13,10 +13,10 @@
   const ORE_REQUIREMENTS={quartz:'pickaxe',emerald:'quartz_pickaxe',ruby:'emerald_pickaxe',diamond:'ruby_pickaxe'};
   for(const [id,name] of Object.entries({coal:'석탄',copper:'구리 광석',iron:'철 광석',gold:'금 광석',copper_ingot:'구리 주괴',iron_ingot:'철 주괴',gold_ingot:'금 주괴',copper_wire:'구리선',iron_plate:'철판',furnace:'용광로',conveyor:'컨베이어 벨트'}))ITEMS[id]={name,max:id==='furnace'?1:99};
   for(const ore of ['coal','copper','iron','gold'])ORE_REQUIREMENTS[ore]='pickaxe';
-  Object.assign(RECIPES,{furnace:{stick:10,stone:30},copper_wire:{copper_ingot:1},iron_plate:{iron_ingot:2},conveyor:{iron_plate:2,copper_wire:3,stone:4}});for(const id of ['furnace','copper_wire','iron_plate','conveyor'])STATIONS[id]='bench';
+  Object.assign(RECIPES,{furnace:{stick:10,stone:30},copper_wire:{copper_ingot:1},iron_plate:{iron_ingot:2},conveyor:{iron_plate:1,copper_wire:1}});for(const id of ['furnace','copper_wire','iron_plate','conveyor'])STATIONS[id]='bench';
   ITEMS.gold_scanner={name:'금 회로 광맥 탐지기',max:1};RECIPES.gold_scanner={scanner:1,gold_ingot:2,copper_wire:3};STATIONS.gold_scanner='anvil';
   const OUTPUT_COUNTS={copper_wire:3};
-  ITEMS.storage_chest={name:'보관 상자',max:20};ITEMS.vertical_conveyor={name:'수직 컨베이어',max:99};RECIPES.storage_chest={stick:8,stone:6};RECIPES.vertical_conveyor={iron_plate:3,copper_wire:4,stone:4};STATIONS.storage_chest=STATIONS.vertical_conveyor='bench';
+  ITEMS.storage_chest={name:'보관 상자',max:20};ITEMS.vertical_conveyor={name:'수직 컨베이어',max:99};RECIPES.storage_chest={stick:8,stone:6};RECIPES.vertical_conveyor={iron_plate:1,copper_wire:1,stone:2};STATIONS.storage_chest=STATIONS.vertical_conveyor='bench';
   for(const [gem,tier,radius,cooldown] of [['emerald',2,.65,480],['ruby',3,.9,350],['diamond',4,1.2,280]]){const id=gem+'_drill';ITEMS[id]={name:({emerald:'에메랄드',ruby:'루비',diamond:'다이아몬드'})[gem]+' 드릴',max:1};TOOLS[id]={tier,radius,cooldown,damage:tier,drill:true,color:TOOLS[gem+'_pickaxe'].color};STATIONS[id]='anvil';RECIPES[id]=gem==='emerald'?{stone:8,quartz:2,emerald:3}:{[gem==='ruby'?'emerald_drill':'ruby_drill']:1,[gem]:3};}
   function canMine(tool,gem){const required=TOOLS[ORE_REQUIREMENTS[gem]];return !!required&&Number.isInteger(tool?.tier)&&tool.tier>=required.tier;}
   for(const [gem,name] of [['quartz','수정'],['emerald','에메랄드'],['ruby','루비']])ITEMS[gem+'_pickaxe']={name:name+' 곡괭이',max:1};

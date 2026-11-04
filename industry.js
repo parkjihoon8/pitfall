@@ -24,7 +24,7 @@ window.buildIndustry=function({T,scene,p,bag,world,field,pickups,equipmentState,
  function use(hit){const item=bag.slots[bag.selected];if(!item||!['conveyor','vertical_conveyor','storage_chest'].includes(item.id))return false;if(!hit?.point)return toast('설치할 바닥이나 연결할 벨트·상자를 겨냥하세요.'),true;
    let anchor={x:hit.point.x,y:hit.point.y,z:hit.point.z},yaw=Math.round(p.yaw/(Math.PI/2))*Math.PI/2,snapped=false;
    const previous=hit.thing==='belt'?state.belts.find(b=>b.id===hit.id):null,box=hit.thing==='box'?boxes().find(b=>b.id===hit.id):hit.kind==='storage'?baseBox:null;
-   if(previous){anchor=out(previous);yaw=previous.yaw;snapped=true;}else if(box){anchor=socket(box);yaw=box.yaw;snapped=true;}else{const nearby=state.belts.find(b=>dist(out(b),anchor)<.7);if(nearby){anchor=out(nearby);yaw=nearby.yaw;snapped=true;}}yaw+=turn;
+   if(previous){anchor=out(previous);yaw=previous.yaw;snapped=true;}else if(box){anchor=socket(box);yaw=box.yaw;snapped=true;}else{const snap=R.snapPlacement(anchor,yaw,item.id,state.belts,boxes());anchor={x:snap.x,y:snap.y,z:snap.z};yaw=snap.yaw;snapped=snap.snapped;}yaw+=turn;
    if(!snapped&&(!['rock','roof'].includes(hit.kind)||hit.normal.y<.6))return toast('평평한 바닥 또는 기존 벨트 끝에 설치하세요.'),true;
    anchor.y=Math.round(anchor.y*100)/100;if(anchor.y> .15||anchor.y< -23)return toast('협곡 지하와 바닥에만 설치할 수 있습니다.'),true;
    const id='factory-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5);
@@ -35,17 +35,17 @@ window.buildIndustry=function({T,scene,p,bag,world,field,pickups,equipmentState,
      if(state.belts.some(v=>{const e=out(v);return dist({x:(v.x+e.x)/2,y:(v.y+e.y)/2,z:(v.z+e.z)/2},{x:(b.x+end.x)/2,y:(b.y+end.y)/2,z:(b.z+end.z)/2})<.55;}))return toast('기존 벨트와 겹칩니다.'),true;
      if(online){online.action({type:'place',at:{x:b.x,y:b.y,z:b.z},yaw:b.yaw});turn=0;return true;}state.belts.push(b);makeBelt(b);if(b.vertical)visuals.get(b.id).scale.y=(b.height||3)/3;
    }
-   if(--item.count===0)bag.slots[bag.selected]=null;turn=0;persist();renderBag();toast(snapped?'연결 지점에 맞춰 설치했습니다.':'설치 완료 · 끝을 겨냥해 다음 벨트를 연결하세요.');return true;
+   if(--item.count===0)bag.slots[bag.selected]=null;turn=0;persist();renderBag();toast(snapped?'2m 안의 연결 지점에 자동으로 맞춰 설치했습니다.':'설치 완료 · 다음 부품을 끝에서 2m 안에 놓으면 자동 연결됩니다.');return true;
  }
  function beltDensity(x,y,z){let value=-Infinity;for(const b of state.belts){if(b.vertical)continue;const f=forward(b.yaw),dx=x-b.x,dz=z-b.z,along=dx*f.x+dz*f.z,side=dx*f.z-dz*f.x;value=Math.max(value,Math.min(.42-Math.abs(side),along,2-along,b.y+.18-y,y-b.y));}return value;}
  function cargoModel(c){let m=cargoVisuals.get(c);if(!m){m=new T.Mesh(new T.OctahedronGeometry(.14),new T.MeshStandardMaterial({color:R.colors[c.item]||0xc4bb93}));m.raycast=()=>{};scene.add(m);cargoVisuals.set(c,m);}return m;}
  function update(dt){if(online){for(const c of state.cargo){const b=state.belts.find(b=>b.id===c.belt);if(!b)continue;const e=out(b),m=cargoModel(c);m.position.set(b.x+(e.x-b.x)*c.progress,b.y+(e.y-b.y)*c.progress+.35,b.z+(e.z-b.z)*c.progress);}return;}const bonus=window.PitfallBaseBonuses||{smeltCapacity:4,conveyorSpeed:1};let changed=false;if(bag.furnaceBuilt&&R.smelt(state,dt,bonus.smeltCapacity)){changed=true;if(opened)draw();}clock+=dt;
    for(const c of [...state.cargo]){const b=state.belts.find(b=>b.id===c.belt);if(!b)continue;const end=out(b);c.progress=Math.min(1,c.progress+dt*bonus.conveyorSpeed/(b.vertical?2.4:1.5));const m=cargoModel(c);m.position.set(b.x+(end.x-b.x)*c.progress,b.y+(end.y-b.y)*c.progress+.35,b.z+(end.z-b.z)*c.progress);if(c.progress<1)continue;
-     const next=state.belts.find(v=>v.id!==b.id&&dist(v,end)<.35);if(next){if(!state.cargo.some(v=>v.belt===next.id)){c.belt=next.id;c.progress=0;changed=true;}continue;}
-     const receiver=boxes().find(v=>dist(v,end)<1.15),accepted=receiver?store(receiver.slots,c.item):bag.furnaceBuilt&&dist(furnacePos,end)<1.7?acceptFuel(c.item,1):false;
+     const next=R.nextBelt(state.belts,b);if(next){if(!state.cargo.some(v=>v.belt===next.id)){c.belt=next.id;c.progress=0;changed=true;}continue;}
+     const receiver=R.receiverBox(boxes(),end),accepted=receiver?store(receiver.slots,c.item):bag.furnaceBuilt&&dist(furnacePos,end)<1.7?acceptFuel(c.item,1):false;
      if(accepted){state.cargo.splice(state.cargo.indexOf(c),1);m.removeFromParent();m.geometry.dispose();m.material.dispose();cargoVisuals.delete(c);changed=true;if(opened)draw();}
    }
-   if(clock>=.8){clock=0;for(const b of state.belts){if(state.cargo.some(c=>c.belt===b.id))continue;const source=boxes().find(v=>dist(socket(v),b)<.35);if(source){const slot=source.slots.find(s=>s?.count>0);if(slot){state.cargo.push({belt:b.id,item:slot.id,progress:0});slot.count--;if(!slot.count)source.slots[source.slots.indexOf(slot)]=null;changed=true;continue;}}
+   if(clock>=.8){clock=0;for(const b of state.belts){if(state.cargo.some(c=>c.belt===b.id))continue;const source=R.sourceBox(boxes(),b);if(source){const slot=source.slots.find(s=>s?.count>0);if(slot){state.cargo.push({belt:b.id,item:slot.id,progress:0});slot.count--;if(!slot.count)source.slots[source.slots.indexOf(slot)]=null;changed=true;continue;}}
        for(const [id,obj] of pickups){const d=bag.drops.find(v=>v.key===id)||obj.userData.interaction.data;if(Math.hypot(d.x-b.x,d.z-b.z)<.65&&Math.abs((d.y||0)-b.y)<.5){state.cargo.push({belt:b.id,item:d.id,progress:0});if(d.count>1){d.count--;bag.drops=bag.drops.filter(v=>v.key!==id);bag.drops.push(d);obj.userData.interaction.data=d;}else{obj.removeFromParent();pickups.delete(id);bag.drops=bag.drops.filter(v=>v.key!==id);if(!bag.collected.includes(id))bag.collected.push(id);}changed=true;break;}}
      }}
    if(changed){persist();renderBag();}
