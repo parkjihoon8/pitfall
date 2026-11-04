@@ -1,6 +1,6 @@
 window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,renderBag,toast,giveLoot}){
   const localStorage=window.PitfallStorage||window.localStorage,online=window.PitfallSession;
-  let state={placed:[],harvested:[],headlamp:false};try{Object.assign(state,JSON.parse(localStorage.getItem('pitfall-exploration-v1'))||{});}catch{}
+  let state={placed:[],harvested:[],openedSecrets:[],headlamp:false};try{Object.assign(state,JSON.parse(localStorage.getItem('pitfall-exploration-v1'))||{});}catch{}
   if(!state.headlampEquipped)state.headlamp=false;
   const gear=document.createElement('div');gear.style.cssText='position:fixed;right:24px;top:110px;color:#e3faff;font:14px sans-serif;pointer-events:none';document.body.append(gear);
   const ladders=[],lights=[],flora=new Map(),wood=new T.MeshStandardMaterial({color:0x795239}),metal=new T.MeshStandardMaterial({color:0x688b87});
@@ -48,5 +48,5 @@ window.buildExploration=function({T,scene,camera,p,bag,world,excavation,save,ren
     }
     p.vy=0;p.landingSpeed=0;p.jumping=false;p.grounded=false;return true;
   }
-  return {apply(next){const seen=new Set(state.placed.map(v=>JSON.stringify(v)));for(const v of next.placed||[])if(!seen.has(JSON.stringify(v)))placed(v);for(const id of next.harvested||[]){flora.get(id)?.removeFromParent();flora.delete(id);}state=next;},use,harvest,update,ladderNear,climbing};
+  return {get state(){return state;},persist,apply(next){const seen=new Set(state.placed.map(v=>JSON.stringify(v)));for(const v of next.placed||[])if(!seen.has(JSON.stringify(v)))placed(v);for(const id of next.harvested||[]){flora.get(id)?.removeFromParent();flora.delete(id);}next.openedSecrets ||= [];state=next;},use,harvest,update,ladderNear,climbing};
 };
